@@ -1,0 +1,27 @@
+# Secrets and Environment Variables
+.env
+.env.local
+.env.*.local
+*.secrets
+auth_key.json
+
+# Python (FastAPI)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.pytest_cache/
+*.db
+
+# Node (React)
+node_modules/
+/build
+/dist
+.eslintcache
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
