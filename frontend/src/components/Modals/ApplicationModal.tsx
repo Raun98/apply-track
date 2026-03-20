@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Application, ApplicationCreate, ApplicationUpdate } from '@/types';
 import { applicationsApi } from '@/services/api';
 import { X, Loader2 } from 'lucide-react';
