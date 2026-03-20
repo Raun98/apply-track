@@ -10,7 +10,7 @@ import {
   DragEndEvent,
   DragStartEvent,
 } from '@dnd-kit/core';
-import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBoardStore } from '@/stores/boardStore';
 import { BoardColumn } from '@/components/Board/BoardColumn';
 import { ApplicationCard } from '@/components/Cards/ApplicationCard';
