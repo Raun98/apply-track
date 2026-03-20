@@ -1,0 +1,97 @@
+export interface User {
+  id: number;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'accepted';
+export type JobSource = 'linkedin' | 'naukri' | 'indeed' | 'manual' | 'unknown';
+
+export interface Application {
+  id: number;
+  user_id: number;
+  company_name: string;
+  position_title: string;
+  location?: string;
+  salary_range?: string;
+  source: JobSource;
+  status: ApplicationStatus;
+  applied_date: string;
+  last_updated: string;
+  notes?: string;
+  email_thread_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ApplicationCreate {
+  company_name: string;
+  position_title: string;
+  location?: string;
+  salary_range?: string;
+  source?: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface ApplicationUpdate {
+  company_name?: string;
+  position_title?: string;
+  location?: string;
+  salary_range?: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface StatusHistory {
+  id: number;
+  from_status: string | null;
+  to_status: string;
+  changed_at: string;
+  reason?: string;
+}
+
+export interface EmailAccount {
+  id: number;
+  user_id: number;
+  provider: string;
+  email: string;
+  last_sync_at?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface EmailAccountCreate {
+  provider: string;
+  email: string;
+  imap_host?: string;
+  imap_port?: number;
+  imap_username?: string;
+  imap_password?: string;
+}
+
+export interface BoardColumn {
+  id: ApplicationStatus;
+  title: string;
+  order: number;
+}
+
+export interface BoardData {
+  columns: BoardColumn[];
+  data: Record<ApplicationStatus, Application[]>;
+}
+
+export interface StatsOverview {
+  total_applications: number;
+  by_status: Record<string, number>;
+  response_rate: number;
+  interview_rate: number;
+  offer_rate: number;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: User;
+}
