@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 
     # CORS - configurable via environment variable (comma-separated)
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     # Frontend URL for CORS and redirects (set in Railway environment)
     FRONTEND_URL: str = "http://localhost:3000"
