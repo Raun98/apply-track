@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import List, Optional
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -39,10 +40,18 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 
     # CORS - configurable via environment variable (comma-separated)
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
     # Frontend URL for CORS and redirects (set in Railway environment)
     FRONTEND_URL: str = "http://localhost:3000"
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse comma-separated CORS origins string into a list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     class Config:
         env_file = ".env"

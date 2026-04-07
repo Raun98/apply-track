@@ -39,7 +39,7 @@ cors_origins = settings.CORS_ORIGINS
 
 # Also add FRONTEND_URL if it's different from CORS_ORIGINS
 if settings.FRONTEND_URL and settings.FRONTEND_URL not in cors_origins:
-    cors_origins.append(settings.FRONTEND_URL)
+    cors_origins = cors_origins + [settings.FRONTEND_URL]
 
 app.add_middleware(
     CORSMiddleware,
