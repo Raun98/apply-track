@@ -25,12 +25,24 @@ class Settings(BaseSettings):
     # Claude API
     ANTHROPIC_API_KEY: str = ""
 
+    # Ollama (fallback when Claude is unavailable). Set OLLAMA_BASE_URL to enable (e.g. http://127.0.0.1:11434).
+    OLLAMA_BASE_URL: str = ""
+    OLLAMA_MODEL: str = "llama3.2"
+
+    # Razorpay Payment Gateway
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+
     # Email Processing
     IMAP_POLL_INTERVAL_MINUTES: int = 5
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
 
-    # CORS
+    # CORS - configurable via environment variable (comma-separated)
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    # Frontend URL for CORS and redirects (set in Railway environment)
+    FRONTEND_URL: str = "http://localhost:3000"
 
     class Config:
         env_file = ".env"

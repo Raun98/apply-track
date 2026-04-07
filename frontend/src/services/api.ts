@@ -1,7 +1,10 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
-const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// In production, set VITE_API_BASE_URL to your backend URL
+// Example: VITE_API_BASE_URL=https://backend-your-service.up.railway.app/api/v1
+// In development, defaults to relative path for Vite proxy
+const API_URL = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -105,4 +108,15 @@ export const emailAccountsApi = {
   delete: (id: number) => api.delete(`/email-accounts/${id}`),
 
   sync: (id: number) => api.post(`/email-accounts/${id}/sync`),
+};
+
+// Subscription API
+export const subscriptionApi = {
+  getPlans: () => api.get('/subscriptions/plans'),
+
+  getCurrent: () => api.get('/subscriptions/current'),
+
+  create: (data: { plan_id: number }) => api.post('/subscriptions/create', data),
+
+  cancel: (subscriptionId: number) => api.post(`/subscriptions/cancel/${subscriptionId}`),
 };

@@ -21,7 +21,7 @@ router = APIRouter()
 security = HTTPBearer()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
@@ -44,7 +44,16 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    return user
+    # Generate tokens for the new user
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": UserResponse.model_validate(user),
+    }
 
 
 @router.post("/login")

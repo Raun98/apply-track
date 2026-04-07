@@ -32,12 +32,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware - must be added before routes
+# In production, CORS_ORIGINS should be set as comma-separated URLs in environment
+# Example: CORS_ORIGINS=https://myapp.railway.app,https://www.myapp.com
+cors_origins = settings.CORS_ORIGINS
+
+# Also add FRONTEND_URL if it's different from CORS_ORIGINS
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in cors_origins:
+    cors_origins.append(settings.FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 

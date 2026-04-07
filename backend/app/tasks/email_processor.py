@@ -31,7 +31,7 @@ async def process_email_async(email_id: int) -> bool:
             email.processed_status = ProcessedStatus.PROCESSING
             await db.commit()
 
-            # Parse with Claude API
+            # Parse with Claude, Ollama fallback, or heuristics
             parsed = await email_parser.parse_email(
                 subject=email.subject,
                 from_address=email.from_address,

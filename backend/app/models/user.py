@@ -34,3 +34,6 @@ class User(Base):
     emails: Mapped[List["Email"]] = relationship(
         "Email", back_populates="user", cascade="all, delete-orphan"
     )
+    subscriptions: Mapped[List["Subscription"]] = relationship(
+        "Subscription", back_populates="user", cascade="all, delete-orphan"
+    )

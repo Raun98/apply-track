@@ -2,13 +2,14 @@ import json
 import re
 from typing import Optional
 
+import httpx
 from anthropic import Anthropic
 
 from app.config import get_settings
 
 settings = get_settings()
 
-# System prompt for Claude
+# Shared system prompt for Claude and Ollama
 SYSTEM_PROMPT = """You are an intelligent email parser for a job application tracking system.
 Your task is to analyze job-related emails and extract structured information.
 
@@ -83,7 +84,9 @@ class ParsedEmailResult:
 
 class EmailParserService:
     def __init__(self):
-        self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self._anthropic: Optional[Anthropic] = None
+        if settings.ANTHROPIC_API_KEY:
+            self._anthropic = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     def _clean_body(self, body: str) -> str:
         """Clean email body for parsing."""
@@ -128,6 +131,94 @@ class EmailParserService:
             "application_status": status,
         }
 
+    def _json_dict_from_llm_text(self, content: str) -> dict:
+        json_match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
+        if json_match:
+            raw = json_match.group(1)
+        else:
+            json_match = re.search(r"({.*})", content, re.DOTALL)
+            if not json_match:
+                raise ValueError("No JSON object in model response")
+            raw = json_match.group(1)
+        return json.loads(raw)
+
+    def _result_from_llm_dict(self, data: dict) -> ParsedEmailResult:
+        return ParsedEmailResult(
+            is_job_email=data.get("is_job_email", False),
+            source_platform=data.get("source_platform", "unknown"),
+            company_name=data.get("company_name"),
+            position_title=data.get("position_title"),
+            application_status=data.get("application_status"),
+            interview_details=data.get("interview_details"),
+            key_info_summary=data.get("key_info_summary", ""),
+            confidence_score=float(data.get("confidence_score", 0.0)),
+        )
+
+    def _try_claude(self, prompt: str) -> Optional[ParsedEmailResult]:
+        if not self._anthropic:
+            return None
+        try:
+            response = self._anthropic.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=1000,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = response.content[0].text
+            data = self._json_dict_from_llm_text(content)
+            return self._result_from_llm_dict(data)
+        except Exception as e:
+            print(f"Error parsing email with Claude: {e}")
+            return None
+
+    async def _try_ollama(self, prompt: str) -> Optional[ParsedEmailResult]:
+        base = (settings.OLLAMA_BASE_URL or "").strip()
+        if not base:
+            return None
+        url = f"{base.rstrip('/')}/api/chat"
+        payload = {
+            "model": settings.OLLAMA_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+        }
+        try:
+            timeout = httpx.Timeout(120.0, connect=5.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                body = response.json()
+            text = (body.get("message") or {}).get("content") or ""
+            if not text.strip():
+                return None
+            data = self._json_dict_from_llm_text(text)
+            return self._result_from_llm_dict(data)
+        except Exception as e:
+            print(f"Error parsing email with Ollama: {e}")
+            return None
+
+    def _pattern_fallback_result(
+        self,
+        subject: str,
+        body: str,
+        from_address: str,
+        reason: str,
+        confidence_score: float = 0.5,
+    ) -> ParsedEmailResult:
+        patterns = self._extract_from_patterns(subject, body, from_address)
+        return ParsedEmailResult(
+            is_job_email=patterns.get("application_status") is not None,
+            source_platform=patterns.get("source_platform", "unknown"),
+            company_name=None,
+            position_title=None,
+            application_status=patterns.get("application_status"),
+            interview_details=None,
+            key_info_summary=reason,
+            confidence_score=confidence_score,
+        )
+
     async def parse_email(
         self,
         subject: str,
@@ -135,75 +226,34 @@ class EmailParserService:
         body: str,
         date: str,
     ) -> Optional[ParsedEmailResult]:
-        """Parse email using Claude API."""
-        if not settings.ANTHROPIC_API_KEY:
-            # Fallback to pattern matching if no API key
-            patterns = self._extract_from_patterns(subject, body, from_address)
-            return ParsedEmailResult(
-                is_job_email=patterns.get("application_status") is not None,
-                source_platform=patterns.get("source_platform", "unknown"),
-                company_name=None,
-                position_title=None,
-                application_status=patterns.get("application_status"),
-                interview_details=None,
-                key_info_summary="Parsed using pattern matching (no AI key)",
-                confidence_score=0.5,
+        """Parse email with Claude, then Ollama if configured, then heuristics."""
+        cleaned_body = self._clean_body(body)
+        prompt = USER_PROMPT_TEMPLATE.format(
+            subject=subject,
+            from_address=from_address,
+            date=date,
+            body=cleaned_body,
+        )
+
+        claude_result = self._try_claude(prompt)
+        if claude_result is not None:
+            return claude_result
+
+        ollama_result = await self._try_ollama(prompt)
+        if ollama_result is not None:
+            return ollama_result
+
+        if not settings.ANTHROPIC_API_KEY and not (settings.OLLAMA_BASE_URL or "").strip():
+            return self._pattern_fallback_result(
+                subject, body, from_address, "Parsed using pattern matching (no AI configured)"
             )
-
-        try:
-            cleaned_body = self._clean_body(body)
-            prompt = USER_PROMPT_TEMPLATE.format(
-                subject=subject,
-                from_address=from_address,
-                date=date,
-                body=cleaned_body,
-            )
-
-            response = self.client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=1000,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
-            )
-
-            # Parse JSON response
-            content = response.content[0].text
-            # Extract JSON from response (handle markdown code blocks)
-            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-            if json_match:
-                content = json_match.group(1)
-            else:
-                json_match = re.search(r'({.*})', content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(1)
-
-            data = json.loads(content)
-
-            return ParsedEmailResult(
-                is_job_email=data.get("is_job_email", False),
-                source_platform=data.get("source_platform", "unknown"),
-                company_name=data.get("company_name"),
-                position_title=data.get("position_title"),
-                application_status=data.get("application_status"),
-                interview_details=data.get("interview_details"),
-                key_info_summary=data.get("key_info_summary", ""),
-                confidence_score=data.get("confidence_score", 0.0),
-            )
-
-        except Exception as e:
-            print(f"Error parsing email with Claude: {e}")
-            # Fallback to pattern matching
-            patterns = self._extract_from_patterns(subject, body, from_address)
-            return ParsedEmailResult(
-                is_job_email=patterns.get("application_status") is not None,
-                source_platform=patterns.get("source_platform", "unknown"),
-                company_name=None,
-                position_title=None,
-                application_status=patterns.get("application_status"),
-                interview_details=None,
-                key_info_summary=f"Fallback parsing due to error: {str(e)[:100]}",
-                confidence_score=0.3,
-            )
+        return self._pattern_fallback_result(
+            subject,
+            body,
+            from_address,
+            "Parsed using pattern matching (AI unavailable or parse failed)",
+            confidence_score=0.3,
+        )
 
 
 # Singleton instance

@@ -174,3 +174,44 @@ class TimelineData(BaseModel):
     applied: int
     responses: int
     interviews: int
+
+
+# ============== Subscription Schemas ==============
+
+class SubscriptionPlanResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    plan_type: str
+    price_monthly: int
+    price_yearly: Optional[int] = None
+    razorpay_plan_id: Optional[str] = None
+    description: Optional[str] = None
+    features: Optional[dict] = None
+    is_active: bool
+
+
+class SubscriptionCreate(BaseModel):
+    plan_id: int
+
+
+class SubscriptionUpdate(BaseModel):
+    status: Optional[str] = None
+
+
+class SubscriptionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    plan_id: int
+    razorpay_subscription_id: Optional[str] = None
+    razorpay_customer_id: Optional[str] = None
+    status: str
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    trial_start: Optional[datetime] = None
+    trial_end: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    created_at: datetime

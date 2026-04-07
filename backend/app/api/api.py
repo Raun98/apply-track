@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, applications, email_accounts, webhooks, board
+from app.api.v1 import auth, applications, email_accounts, webhooks, board, subscriptions
 
 api_router = APIRouter()
 
@@ -9,3 +9,4 @@ api_router.include_router(applications.router, prefix="/applications", tags=["ap
 api_router.include_router(email_accounts.router, prefix="/email-accounts", tags=["email-accounts"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(board.router, prefix="/board", tags=["board"])
+api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])

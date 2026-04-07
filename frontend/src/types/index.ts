@@ -95,3 +95,34 @@ export interface AuthResponse {
   token_type: string;
   user: User;
 }
+
+export interface SubscriptionPlan {
+  id: number;
+  name: string;
+  plan_type: string;
+  price_monthly: number;
+  price_yearly?: number;
+  razorpay_plan_id?: string;
+  description?: string;
+  features?: Record<string, unknown>;
+  is_active: boolean;
+}
+
+export interface Subscription {
+  id: number;
+  user_id: number;
+  plan_id: number;
+  razorpay_subscription_id?: string;
+  razorpay_customer_id?: string;
+  status: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  trial_start?: string;
+  trial_end?: string;
+  cancelled_at?: string;
+  created_at: string;
+}
+
+export interface SubscriptionCreate {
+  plan_id: number;
+}

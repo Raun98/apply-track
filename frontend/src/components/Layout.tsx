@@ -7,6 +7,7 @@ import {
   Mail,
   LogOut,
   Briefcase,
+  CreditCard,
 } from 'lucide-react';
 
 export function Layout() {
@@ -18,6 +19,7 @@ export function Layout() {
     { name: 'Applications', href: '/applications', icon: List },
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Email Settings', href: '/email-settings', icon: Mail },
+    { name: 'Subscription', href: '/subscription', icon: CreditCard },
   ];
 
   return (
