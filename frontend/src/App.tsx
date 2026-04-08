@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { Layout } from '@/components/Layout';
+import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { BoardPage } from '@/pages/BoardPage';
@@ -25,8 +26,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <Routes>
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
@@ -37,10 +41,9 @@ function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<Navigate to="/board" />} />
         <Route path="board" element={<BoardPage />} />
-        <Route path="applications" element={<ApplicationsPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="applications" element={<ApplicationsPage />} />
         <Route path="email-settings" element={<EmailSettingsPage />} />
         <Route path="subscription" element={<SubscriptionPage />} />
       </Route>
