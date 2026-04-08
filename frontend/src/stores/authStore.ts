@@ -67,9 +67,13 @@ export const useAuthStore = create<AuthState>()(
           isHydrated = true;
           
           if (!error && state) {
-            // If no token exists, make sure isAuthenticated is false
-            if (!state.accessToken) {
+            // CRITICAL FIX: If no token exists, ensure isAuthenticated is false
+            // This prevents redirect loops when localStorage is corrupted
+            if (!state.accessToken || !state.refreshToken) {
               state.isAuthenticated = false;
+              state.user = null;
+              state.accessToken = null;
+              state.refreshToken = null;
             }
             state.isLoading = false;
           } else {

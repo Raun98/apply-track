@@ -40,7 +40,8 @@ function App() {
   }
 
   // User is authenticated ONLY if they have both accessToken AND isAuthenticated flag
-  const isUserAuthenticated = !!accessToken && isAuthenticated;
+  // Extra safety check: accessToken must be a non-empty string
+  const isUserAuthenticated = !!(accessToken && accessToken.trim() && isAuthenticated);
 
   return (
     <Routes>
