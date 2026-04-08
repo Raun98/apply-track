@@ -10,6 +10,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { ApplicationsPage } from '@/pages/ApplicationsPage';
 import { EmailSettingsPage } from '@/pages/EmailSettingsPage';
 import { SubscriptionPage } from '@/pages/SubscriptionPage';
+import { DebugPage } from '@/pages/DebugPage';
 import { Loader2 } from 'lucide-react';
 
 function App() {
@@ -45,6 +46,9 @@ function App() {
 
   return (
     <Routes>
+      {/* Debug route */}
+      <Route path="/debug" element={<DebugPage />} />
+      
       {/* Public routes - unauthenticated users see these */}
       <Route 
         path="/" 
