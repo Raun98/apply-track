@@ -87,6 +87,18 @@ services:
       - ./backend:/app
     command: celery -A app.tasks.celery_app beat --loglevel=info
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000/api/v1
+
 volumes:
   postgres_data:
   redis_data:
