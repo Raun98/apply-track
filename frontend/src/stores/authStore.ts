@@ -48,6 +48,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
+        // Clear localStorage to ensure clean state
+        localStorage.removeItem('auth-storage');
       },
 
       setLoading: (loading: boolean) => {

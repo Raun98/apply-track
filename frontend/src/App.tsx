@@ -26,13 +26,16 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, accessToken } = useAuthStore();
+
+  // User is authenticated if they have a valid access token
+  const isUserAuthenticated = !!accessToken && isAuthenticated;
 
   return (
     <Routes>
-      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
+      <Route path="/login" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
+      <Route path="/register" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />} />
       <Route
         path="/"
         element={
