@@ -53,23 +53,27 @@ function App() {
 
   return (
     <Routes>
+      {/* Public routes - these take priority */}
       <Route path="/" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
       <Route path="/login" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
       <Route path="/register" element={isUserAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />} />
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <Layout />
-          </PrivateRoute>
-        }
-      >
-        <Route path="board" element={<BoardPage />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="applications" element={<ApplicationsPage />} />
-        <Route path="email-settings" element={<EmailSettingsPage />} />
-        <Route path="subscription" element={<SubscriptionPage />} />
-      </Route>
+      
+      {/* Protected layout routes - will redirect to /login if not authenticated */}
+      {isUserAuthenticated && (
+        <Route
+          element={<Layout />}
+        >
+          <Route path="board" element={<BoardPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="email-settings" element={<EmailSettingsPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
+        </Route>
+      )}
+
+      {/* Redirect any other path to home for unauthenticated users */}
+      {!isUserAuthenticated && <Route path="*" element={<Navigate to="/" replace />} />}
+      {isUserAuthenticated && <Route path="*" element={<Navigate to="/dashboard" replace />} />}
     </Routes>
   );
 }
