@@ -61,10 +61,19 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => {
         return (state, error) => {
           if (!error && state) {
+            // If no token exists, make sure isAuthenticated is false
+            if (!state.accessToken) {
+              state.isAuthenticated = false;
+            }
             state.setLoading(false);
-            // If we have a token, mark as authenticated
-            if (state.accessToken) {
-              state.isAuthenticated = true;
+          } else {
+            // If there's an error rehydrating, reset to unauthenticated
+            if (state) {
+              state.isAuthenticated = false;
+              state.accessToken = null;
+              state.refreshToken = null;
+              state.user = null;
+              state.setLoading(false);
             }
           }
         };
