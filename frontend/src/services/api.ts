@@ -48,14 +48,16 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch (refreshError) {
+          // Token refresh failed, logout the user
           useAuthStore.getState().logout();
-          // Only redirect to login if we were trying to use an expired token
-          window.location.href = '/login';
+          // Don't automatically redirect - let the app handle it based on current route
+          // The app will show the landing page if no auth, or login page as fallback
           return Promise.reject(refreshError);
         }
       }
-      // If no refresh token, just reject the error (don't redirect)
-      // The app will handle showing the landing page
+      // If no refresh token and 401, logout (no active session)
+      useAuthStore.getState().logout();
+      // Don't redirect - let the app handle it
     }
 
     return Promise.reject(error);
