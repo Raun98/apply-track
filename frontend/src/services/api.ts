@@ -30,9 +30,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config;
+    const authState = useAuthStore.getState();
 
     if (error.response?.status === 401 && originalRequest) {
-      const refreshToken = useAuthStore.getState().refreshToken;
+      // Only try to refresh if we have a refresh token
+      const refreshToken = authState.refreshToken;
 
       if (refreshToken) {
         try {
@@ -47,10 +49,13 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch (refreshError) {
           useAuthStore.getState().logout();
+          // Only redirect to login if we were trying to use an expired token
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
       }
+      // If no refresh token, just reject the error (don't redirect)
+      // The app will handle showing the landing page
     }
 
     return Promise.reject(error);
