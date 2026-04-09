@@ -68,7 +68,7 @@ export function BoardColumn({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[70vh]">
+      <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[500px]">
         <SortableContext
           items={visibleApplications.map((app) => app.id.toString())}
           strategy={verticalListSortingStrategy}
@@ -86,7 +86,7 @@ export function BoardColumn({
         {hiddenCount > 0 && (
           <button
             onClick={onLoadMore}
-            className="w-full mt-2 py-2 px-3 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full mt-2 py-2 px-3 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors sticky bottom-0"
           >
             Load {Math.min(10, hiddenCount)} more ({hiddenCount} hidden)
           </button>
