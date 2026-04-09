@@ -18,12 +18,15 @@ import { Application, ApplicationStatus } from '@/types';
 import { Plus, RefreshCw, Search, X } from 'lucide-react';
 import { ApplicationModal } from '@/components/Modals/ApplicationModal';
 
+const CARDS_PER_COLUMN = 15; // Show 15 cards per column, then "Load More"
+
 export function BoardPage() {
   const { columns, applications, isLoading, fetchBoardData, moveApplication } = useBoardStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedColumns, setExpandedColumns] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -92,6 +95,32 @@ export function BoardPage() {
 
   const filteredApps = getFilteredApplications();
   const totalApps = Object.values(filteredApps).reduce((sum, apps) => sum + apps.length, 0);
+
+  const toggleColumnExpanded = (columnId: string) => {
+    const newExpanded = new Set(expandedColumns);
+    if (newExpanded.has(columnId)) {
+      newExpanded.delete(columnId);
+    } else {
+      newExpanded.add(columnId);
+    }
+    setExpandedColumns(newExpanded);
+  };
+
+  const getVisibleCards = (columnId: string, apps: Application[]) => {
+    const isExpanded = expandedColumns.has(columnId);
+    if (isExpanded) {
+      return apps; // Show all
+    }
+    return apps.slice(0, CARDS_PER_COLUMN); // Show only first 15
+  };
+
+  const getHiddenCount = (columnId: string, apps: Application[]) => {
+    const isExpanded = expandedColumns.has(columnId);
+    if (isExpanded) {
+      return 0;
+    }
+    return Math.max(0, apps.length - CARDS_PER_COLUMN);
+  };
 
   if (isLoading) {
     return (
@@ -174,15 +203,24 @@ export function BoardPage() {
           onDragEnd={handleDragEnd}
         >
           <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
-            {columns.map((column) => (
-              <BoardColumn
-                key={column.id}
-                id={column.id}
-                title={column.title}
-                applications={filteredApps[column.id] || []}
-                onCardClick={setSelectedApplication}
-              />
-            ))}
+            {columns.map((column) => {
+              const columnApps = filteredApps[column.id] || [];
+              const visibleApps = getVisibleCards(column.id, columnApps);
+              const hiddenCount = getHiddenCount(column.id, columnApps);
+
+              return (
+                <BoardColumn
+                  key={column.id}
+                  id={column.id}
+                  title={column.title}
+                  applications={columnApps}
+                  visibleApplications={visibleApps}
+                  hiddenCount={hiddenCount}
+                  onCardClick={setSelectedApplication}
+                  onLoadMore={() => toggleColumnExpanded(column.id)}
+                />
+              );
+            })}
           </div>
 
           <DragOverlay>
