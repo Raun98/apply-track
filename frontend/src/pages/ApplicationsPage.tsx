@@ -59,16 +59,16 @@ export function ApplicationsPage() {
   }, [searchQuery, statusFilter, page]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Applications</h1>
-          <p className="text-gray-600">Manage and track all your job applications</p>
+          <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
+          <p className="text-gray-600 mt-1">Manage and track all your job applications</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 bg-gray-50 rounded-xl p-4 border border-gray-200">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -76,16 +76,16 @@ export function ApplicationsPage() {
             placeholder="Search by company or position..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white transition-all"
           />
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-3 py-2.5">
           <Filter className="w-5 h-5 text-gray-400" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="px-1 py-0 border-0 focus:ring-0 outline-none font-medium text-gray-700 bg-white"
           >
             <option value="">All Statuses</option>
             <option value="applied">Applied</option>
@@ -98,28 +98,36 @@ export function ApplicationsPage() {
         </div>
       </div>
 
+      {/* Results Info */}
+      {total > 0 && (
+        <div className="flex items-center justify-between text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <span><span className="font-semibold text-gray-900">{total}</span> total applications</span>
+          <span>Page {page} of {Math.ceil(total / 20)}</span>
+        </div>
+      )}
+
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Company
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Position
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Source
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Applied Date
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -127,34 +135,40 @@ export function ApplicationsPage() {
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="text-gray-600">Loading applications...</span>
+                    </div>
                   </td>
                 </tr>
               ) : applications.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    No applications found
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="text-gray-500">
+                      <p className="font-medium">No applications found</p>
+                      <p className="text-sm mt-1">Try adjusting your search or filters</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-gray-50">
+                  <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{app.company_name}</div>
+                      <div className="font-semibold text-gray-900">{app.company_name}</div>
                       {app.location && (
-                        <div className="text-sm text-gray-500">{app.location}</div>
+                        <div className="text-sm text-gray-500 mt-0.5">{app.location}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{app.position_title}</div>
+                      <div className="font-medium text-gray-900">{app.position_title}</div>
                       {app.salary_range && (
-                        <div className="text-sm text-gray-500">{app.salary_range}</div>
+                        <div className="text-sm text-gray-600 mt-0.5">{app.salary_range}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                           statusColors[app.status]
                         }`}
                       >
@@ -162,16 +176,16 @@ export function ApplicationsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center">
+                      <div className="flex items-center space-x-2">
                         {sourceIcons[app.source]}
-                        <span className="ml-2 text-sm text-gray-600 capitalize">{app.source}</span>
+                        <span className="text-sm text-gray-600 capitalize font-medium">{app.source}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-600 font-medium">
                       {format(new Date(app.applied_date), 'MMM d, yyyy')}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-gray-400 hover:text-gray-600">
+                      <button className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
                         <MoreHorizontal className="w-5 h-5" />
                       </button>
                     </td>
@@ -184,22 +198,22 @@ export function ApplicationsPage() {
 
         {/* Pagination */}
         {total > 20 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-            <div className="text-sm text-gray-500">
-              Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} results
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-600 font-medium">
+              Showing <span className="text-gray-900 font-semibold">{((page - 1) * 20) + 1}-{Math.min(page * 20, total)}</span> of <span className="text-gray-900 font-semibold">{total}</span>
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-white transition-colors"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page * 20 >= total}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg disabled:opacity-50 hover:bg-white transition-colors"
               >
                 Next
               </button>
