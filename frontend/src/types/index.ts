@@ -1,8 +1,10 @@
 export interface User {
   id: number;
   email: string;
+  name?: string;
   is_active: boolean;
   created_at: string;
+  inbox_address?: string;
 }
 
 export type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'accepted';

@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import re
 from datetime import datetime
 from typing import Any
 
@@ -207,3 +210,76 @@ async def receive_raw_email(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse email: {str(e)}",
         )
+
+
+@router.post("/mailgun-inbound")
+async def mailgun_inbound(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Handles Mailgun inbound email routing.
+    Mailgun POSTs multipart/form-data with fields:
+      recipient, sender, subject, body-plain, body-html, Message-Id, timestamp, token, signature
+
+    Route all mail to user{id}@INBOX_DOMAIN here.
+    """
+    form = await request.form()
+
+    # Verify Mailgun signature
+    timestamp = form.get("timestamp", "")
+    mg_token = form.get("token", "")
+    signature = form.get("signature", "")
+
+    if settings.MAILGUN_API_KEY:  # Only verify if key is set
+        expected = hmac.new(
+            settings.MAILGUN_API_KEY.encode(),
+            f"{timestamp}{mg_token}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected, signature):
+            raise HTTPException(status_code=403, detail="Invalid Mailgun signature")
+
+    recipient = form.get("recipient", "")
+    sender = form.get("sender", "")
+    subject = form.get("subject", "")
+    body_plain = form.get("body-plain", "")
+    body_html = form.get("body-html", "")
+    message_id = form.get("Message-Id", "") or f"mailgun-{datetime.utcnow().timestamp()}"
+
+    # Extract user ID from recipient: user{id}@inbox.applytrack.app
+    match = re.match(r"user(\d+)@", recipient)
+    if not match:
+        return {"status": "ignored", "reason": "recipient format not recognized"}
+
+    user_id = int(match.group(1))
+
+    # Check message_id dedup
+    if message_id:
+        existing = await db.execute(
+            select(Email).where(Email.message_id == message_id)
+        )
+        if existing.scalar_one_or_none():
+            return {"status": "duplicate", "message_id": message_id}
+
+    # Create email record and queue for processing (same flow as other webhooks)
+    email_record = Email(
+        user_id=user_id,
+        message_id=message_id,
+        from_address=sender,
+        to_address=recipient,
+        subject=subject,
+        body_text=body_plain[:10000] if body_plain else "",
+        body_html=body_html[:10000] if body_html else None,
+        received_at=datetime.utcnow(),
+        processed_status=ProcessedStatus.PENDING,
+    )
+
+    db.add(email_record)
+    await db.commit()
+    await db.refresh(email_record)
+
+    # Queue for processing via the same Celery task
+    process_email.delay(email_record.id)
+
+    return {"status": "queued", "email_id": email_record.id}

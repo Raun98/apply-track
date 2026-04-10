@@ -32,12 +32,20 @@ services:
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-}
+      - INBOX_DOMAIN=${INBOX_DOMAIN:-inbox.applytrack.app}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
+      - ADMIN_SECRET=${ADMIN_SECRET:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -54,13 +62,20 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=your-secret-key-change-in-production
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - WEBHOOK_SECRET=webhook-secret-change-in-production
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - INBOX_DOMAIN=${INBOX_DOMAIN:-inbox.applytrack.app}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
+      - ADMIN_SECRET=${ADMIN_SECRET:-}
     depends_on:
       - db
       - redis
@@ -73,13 +88,20 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=your-secret-key-change-in-production
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - WEBHOOK_SECRET=webhook-secret-change-in-production
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - INBOX_DOMAIN=${INBOX_DOMAIN:-inbox.applytrack.app}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
+      - ADMIN_SECRET=${ADMIN_SECRET:-}
     depends_on:
       - db
       - redis
@@ -92,12 +114,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: prod
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
     ports:
       - "80:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_BASE_URL=http://backend:8000/api/v1
 
 volumes:
   postgres_data:

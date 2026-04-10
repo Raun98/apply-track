@@ -12,8 +12,10 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBoardStore } from '@/stores/boardStore';
+import { useAuthStore } from '@/stores/authStore';
 import { BoardColumn } from '@/components/Board/BoardColumn';
 import { ApplicationCard } from '@/components/Cards/ApplicationCard';
+import { OnboardingEmptyState } from '@/components/OnboardingEmptyState';
 import { Application, ApplicationStatus } from '@/types';
 import { Plus, RefreshCw, Search, X } from 'lucide-react';
 import { ApplicationModal } from '@/components/Modals/ApplicationModal';
@@ -22,11 +24,13 @@ const CARDS_PER_COLUMN = 15; // Show 15 cards per column, then "Load More"
 
 export function BoardPage() {
   const { columns, applications, isLoading, fetchBoardData, moveApplication } = useBoardStore();
+  const { user } = useAuthStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedColumns, setExpandedColumns] = useState<Set<string>>(new Set());
+  const [activeColumn, setActiveColumn] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -78,7 +82,7 @@ export function BoardPage() {
 
   const filterApplications = (apps: Application[]) => {
     return apps.filter((app) => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         app.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.position_title.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesSearch;
@@ -127,6 +131,24 @@ export function BoardPage() {
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  // Check if user has zero applications — show onboarding
+  const hasApplications = totalApps > 0 || Object.values(applications).some(apps => apps.length > 0);
+  if (!hasApplications && !searchQuery) {
+    return (
+      <>
+        <OnboardingEmptyState onAddApplication={() => setIsCreateModalOpen(true)} />
+        {isCreateModalOpen && (
+          <ApplicationModal
+            onClose={() => {
+              setIsCreateModalOpen(false);
+              fetchBoardData();
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -183,60 +205,116 @@ export function BoardPage() {
           <span>application{totalApps !== 1 ? 's' : ''} found</span>
           {searchQuery && (
             <>
-              <span className="text-gray-400">•</span>
+              <span className="text-gray-400">&bull;</span>
               <span>Filtering by: <span className="font-medium text-gray-900">"{searchQuery}"</span></span>
             </>
           )}
         </div>
       )}
 
+      {/* Mobile Tab Bar */}
+      <div className="md:hidden flex overflow-x-auto border-b border-gray-200 mb-4 -mx-4 px-4">
+        {columns.map((col, i) => {
+          const colApps = filteredApps[col.id] || [];
+          return (
+            <button
+              key={col.id}
+              onClick={() => setActiveColumn(i)}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition ${
+                activeColumn === i
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-400'
+              }`}
+            >
+              {col.title} ({colApps.length})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Board */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Desktop: horizontal flex with all columns */}
+        <div className="hidden md:flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
+          {columns.map((column) => {
+            const columnApps = filteredApps[column.id] || [];
+            const visibleApps = getVisibleCards(column.id, columnApps);
+            const hiddenCount = getHiddenCount(column.id, columnApps);
+
+            return (
+              <BoardColumn
+                key={column.id}
+                id={column.id}
+                title={column.title}
+                applications={columnApps}
+                visibleApplications={visibleApps}
+                hiddenCount={hiddenCount}
+                onCardClick={setSelectedApplication}
+                onLoadMore={() => toggleColumnExpanded(column.id)}
+              />
+            );
+          })}
         </div>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
-            {columns.map((column) => {
-              const columnApps = filteredApps[column.id] || [];
-              const visibleApps = getVisibleCards(column.id, columnApps);
-              const hiddenCount = getHiddenCount(column.id, columnApps);
 
-              return (
-                <BoardColumn
-                  key={column.id}
-                  id={column.id}
-                  title={column.title}
-                  applications={columnApps}
-                  visibleApplications={visibleApps}
-                  hiddenCount={hiddenCount}
-                  onCardClick={setSelectedApplication}
-                  onLoadMore={() => toggleColumnExpanded(column.id)}
-                />
-              );
-            })}
-          </div>
+        {/* Mobile: single column at a time */}
+        <div className="md:hidden">
+          {columns.length > 0 && (() => {
+            const column = columns[activeColumn];
+            if (!column) return null;
+            const columnApps = filteredApps[column.id] || [];
+            const visibleApps = getVisibleCards(column.id, columnApps);
+            const hiddenCount = getHiddenCount(column.id, columnApps);
 
-          <DragOverlay>
-            {activeId ? (
-              <div className="opacity-90">
-                {getActiveApplication() && (
-                  <ApplicationCard
-                    application={getActiveApplication()!}
-                    onClick={() => {}}
+            return (
+              <div className="space-y-2">
+                {visibleApps.map((application) => (
+                  <MobileCard
+                    key={application.id}
+                    application={application}
+                    columns={columns}
+                    currentStatus={column.id}
+                    onCardClick={setSelectedApplication}
+                    onMove={async (appId, toCol) => {
+                      await moveApplication(appId, toCol);
+                    }}
                   />
+                ))}
+                {hiddenCount > 0 && (
+                  <button
+                    onClick={() => toggleColumnExpanded(column.id)}
+                    className="w-full py-2 px-3 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Load more ({hiddenCount} hidden)
+                  </button>
+                )}
+                {columnApps.length === 0 && (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    No applications in this column
+                  </div>
                 )}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
+            );
+          })()}
+        </div>
+
+        <DragOverlay>
+          {activeId ? (
+            <div className="opacity-90">
+              {getActiveApplication() && (
+                <ApplicationCard
+                  application={getActiveApplication()!}
+                  onClick={() => {}}
+                />
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Modals */}
       {selectedApplication && (
@@ -254,6 +332,69 @@ export function BoardPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Mobile card with a "Move to..." dropdown instead of drag-and-drop */
+function MobileCard({
+  application,
+  columns,
+  currentStatus,
+  onCardClick,
+  onMove,
+}: {
+  application: Application;
+  columns: { id: ApplicationStatus; title: string }[];
+  currentStatus: ApplicationStatus;
+  onCardClick: (app: Application) => void;
+  onMove: (appId: number, toCol: ApplicationStatus) => Promise<void>;
+}) {
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div onClick={() => onCardClick(application)} className="cursor-pointer">
+        <div className="flex items-start justify-between mb-1">
+          <h4 className="font-semibold text-gray-900 truncate">{application.company_name}</h4>
+        </div>
+        <p className="text-sm text-gray-600 line-clamp-2">{application.position_title}</p>
+        {application.location && (
+          <p className="text-xs text-gray-400 mt-1 truncate">{application.location}</p>
+        )}
+      </div>
+
+      {/* Move to dropdown */}
+      <div className="mt-3 pt-2 border-t border-gray-100 relative">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMoveMenu(!showMoveMenu);
+          }}
+          className="text-xs text-blue-600 font-medium hover:text-blue-800"
+        >
+          Move to...
+        </button>
+        {showMoveMenu && (
+          <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 min-w-[140px]">
+            {columns
+              .filter((col) => col.id !== currentStatus)
+              .map((col) => (
+                <button
+                  key={col.id}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setShowMoveMenu(false);
+                    await onMove(application.id, col.id);
+                  }}
+                  className="block w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {col.title}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

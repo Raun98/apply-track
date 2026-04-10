@@ -1,4 +1,5 @@
-from datetime import timedelta
+import secrets
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -17,12 +18,14 @@ from app.api.deps import (
     get_current_user,
 )
 from app.models.user import User
-from app.schemas import UserCreate, UserResponse, UserUpdate
+from app.schemas import UserCreate, UserResponse, UserUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
+from app.services.email_service import send_email
 
 router = APIRouter()
 security = HTTPBearer()
 limiter = Limiter(key_func=get_remote_address)
+settings = get_settings()
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -47,6 +50,22 @@ async def register(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Send verification email
+    verify_token = secrets.token_urlsafe(32)
+    user.email_verify_token = verify_token
+    await db.commit()
+
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={verify_token}"
+    await send_email(
+        to=user.email,
+        subject="Verify your ApplyTrack email",
+        html_body=f"""
+        <p>Welcome to ApplyTrack!</p>
+        <p>Click below to verify your email address:</p>
+        <p><a href="{verify_url}">{verify_url}</a></p>
+        """,
+    )
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
@@ -101,7 +120,6 @@ async def refresh_token(
     """Refresh access token."""
     from jose import jwt, JWTError
 
-    settings = get_settings()
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid refresh token",
@@ -164,3 +182,69 @@ async def update_profile(
     await db.commit()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/forgot-password", status_code=200)
+@limiter.limit("5/minute")
+async def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset email."""
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    # Always return 200 to avoid email enumeration
+    if not user:
+        return {"message": "If that email exists, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    user.password_reset_token = token
+    user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
+    await db.commit()
+
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    await send_email(
+        to=user.email,
+        subject="Reset your ApplyTrack password",
+        html_body=f"""
+        <p>Hi {user.name or user.email},</p>
+        <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+        <p><a href="{reset_url}">{reset_url}</a></p>
+        <p>If you didn't request this, ignore this email.</p>
+        """,
+    )
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=200)
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password with token from email."""
+    result = await db.execute(
+        select(User).where(User.password_reset_token == data.token)
+    )
+    user = result.scalar_one_or_none()
+    if not user or not user.password_reset_expires or user.password_reset_expires < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.password_hash = get_password_hash(data.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+    await db.commit()
+    return {"message": "Password reset successfully"}
+
+
+@router.get("/verify-email")
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    """Verify email address with token from registration email."""
+    result = await db.execute(select(User).where(User.email_verify_token == token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    user.email_verified = True
+    user.email_verify_token = None
+    await db.commit()
+    return {"message": "Email verified successfully"}

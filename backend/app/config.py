@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Job Tracker"
+    APP_NAME: str = "ApplyTrack"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
 
@@ -42,6 +42,14 @@ class Settings(BaseSettings):
 
     # Encryption
     ENCRYPTION_KEY: str = ""  # Fernet key — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+    # Mailgun (transactional email + inbound routing)
+    MAILGUN_API_KEY: str = ""
+    MAILGUN_DOMAIN: str = ""
+    EMAIL_FROM: str = "noreply@applytrack.app"
+
+    # Admin
+    ADMIN_SECRET: str = ""
 
     # CORS - configurable via environment variable (comma-separated)
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]

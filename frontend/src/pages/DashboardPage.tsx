@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBoardStore } from '@/stores/boardStore';
+import { OnboardingEmptyState } from '@/components/OnboardingEmptyState';
+import { ApplicationModal } from '@/components/Modals/ApplicationModal';
 import {
   Briefcase,
   Mail,
@@ -10,7 +12,8 @@ import {
 } from 'lucide-react';
 
 export function DashboardPage() {
-  const { stats, fetchStats } = useBoardStore();
+  const { stats, fetchStats, fetchBoardData } = useBoardStore();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -23,6 +26,24 @@ export function DashboardPage() {
     if (rate < 30) return 'text-yellow-500';
     return 'text-green-500';
   };
+
+  // Show onboarding empty state when no applications
+  if (stats && stats.total_applications === 0) {
+    return (
+      <>
+        <OnboardingEmptyState onAddApplication={() => setIsCreateModalOpen(true)} />
+        {isCreateModalOpen && (
+          <ApplicationModal
+            onClose={() => {
+              setIsCreateModalOpen(false);
+              fetchStats();
+              fetchBoardData();
+            }}
+          />
+        )}
+      </>
+    );
+  }
 
   const statCards = [
     {
@@ -109,10 +130,10 @@ export function DashboardPage() {
           {stats?.by_status && Object.entries(stats.by_status).length > 0 ? (
             <div className="space-y-4">
               {Object.entries(stats.by_status).map(([status, count]) => {
-                const percentage = stats.total_applications > 0 
-                  ? (count / stats.total_applications) * 100 
+                const percentage = stats.total_applications > 0
+                  ? (count / stats.total_applications) * 100
                   : 0;
-                
+
                 const statusColors: Record<string, {bar: string, badge: string}> = {
                   applied: { bar: 'bg-blue-500', badge: 'bg-blue-100 text-blue-700' },
                   screening: { bar: 'bg-indigo-500', badge: 'bg-indigo-100 text-indigo-700' },
