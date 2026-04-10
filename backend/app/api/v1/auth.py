@@ -1,10 +1,12 @@
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.api.deps import (
     get_db,
@@ -15,19 +17,22 @@ from app.api.deps import (
     get_current_user,
 )
 from app.models.user import User
-from app.schemas import UserCreate, UserResponse
+from app.schemas import UserCreate, UserResponse, UserUpdate
+from app.config import get_settings
 
 router = APIRouter()
 security = HTTPBearer()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Register a new user."""
-    # Check if user exists
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -35,7 +40,6 @@ async def register(
             detail="Email already registered",
         )
 
-    # Create user
     user = User(
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
@@ -44,7 +48,6 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    # Generate tokens for the new user
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
@@ -57,7 +60,9 @@ async def register(
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -95,7 +100,6 @@ async def refresh_token(
 ) -> Any:
     """Refresh access token."""
     from jose import jwt, JWTError
-    from app.config import get_settings
 
     settings = get_settings()
     credentials_exception = HTTPException(
@@ -133,4 +137,30 @@ async def get_me(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Get current user info."""
-    return current_user
+    return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Update current user's profile."""
+    if data.name is not None:
+        current_user.name = data.name
+    if data.email is not None:
+        # Check uniqueness
+        result = await db.execute(
+            select(User).where(User.email == data.email, User.id != current_user.id)
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use",
+            )
+        current_user.email = data.email
+
+    await db.commit()
+    await db.refresh(current_user)
+    return UserResponse.model_validate(current_user)

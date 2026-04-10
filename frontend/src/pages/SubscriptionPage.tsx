@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { subscriptionApi } from '@/services/api';
 import { SubscriptionPlan, Subscription } from '@/types';
 import { Check, Crown, Loader2, Star } from 'lucide-react';
@@ -37,8 +38,15 @@ export function SubscriptionPage() {
       const paymentLink = res.data.razorpay_payment_link;
       if (paymentLink) {
         window.location.href = paymentLink;
+      } else {
+        toast.success('Subscription activated');
+        // Refresh current subscription
+        const subRes = await subscriptionApi.getCurrent();
+        setCurrentSub(subRes.data);
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      toast.error(err.response?.data?.detail || 'Failed to activate subscription');
       console.error(e);
     } finally {
       setSubscribing(null);
@@ -49,8 +57,10 @@ export function SubscriptionPage() {
     if (!currentSub) return;
     try {
       await subscriptionApi.cancel(currentSub.id);
+      toast.success('Subscription cancelled');
       setCurrentSub({ ...currentSub, status: 'cancelled', cancelled_at: new Date().toISOString() });
     } catch (e) {
+      toast.error('Failed to cancel subscription');
       console.error(e);
     }
   };

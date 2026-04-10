@@ -2,14 +2,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.config import get_settings
 from app.api.api import api_router
 from app.api.deps import get_db, get_current_user_ws
 from app.database import AsyncSessionLocal
-from app.services.websocket_manager import websocket_manager
+from app.services.websocket_manager import manager
 
 settings = get_settings()
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -17,8 +22,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     print(f"Starting {settings.APP_NAME}")
+    await manager.startup()
     yield
     # Shutdown
+    await manager.shutdown()
     print(f"Shutting down {settings.APP_NAME}")
 
 
@@ -32,12 +39,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS middleware - must be added before routes
-# In production, CORS_ORIGINS should be set as comma-separated URLs in environment
-# Example: CORS_ORIGINS=https://myapp.railway.app,https://www.myapp.com
 cors_origins = settings.CORS_ORIGINS
 
-# Also add FRONTEND_URL if it's different from CORS_ORIGINS
 if settings.FRONTEND_URL and settings.FRONTEND_URL not in cors_origins:
     cors_origins = cors_origins + [settings.FRONTEND_URL]
 
@@ -69,22 +77,20 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close(code=4001)
             return
 
-        await websocket_manager.connect(websocket, user.id)
+        await manager.connect(user.id, websocket)
 
         try:
             while True:
-                # Keep connection alive and handle client messages
                 data = await websocket.receive_json()
 
-                # Handle ping/pong
                 if data.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
 
         except WebSocketDisconnect:
-            websocket_manager.disconnect(websocket, user.id)
+            manager.disconnect(user.id)
         except Exception as e:
             print(f"WebSocket error: {e}")
-            websocket_manager.disconnect(websocket, user.id)
+            manager.disconnect(user.id)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.email_account import EmailAccount, EmailProvider
 from app.schemas import EmailAccountCreate, EmailAccountResponse
 from app.services.imap_service import IMAPService
+from app.services.encryption import encrypt_password
 
 router = APIRouter()
 
@@ -61,7 +62,7 @@ async def create_email_account(
         imap_host=imap_host,
         imap_port=imap_port,
         imap_username=data.imap_username or data.email,
-        imap_password=data.imap_password,
+        imap_password=encrypt_password(data.imap_password) if data.imap_password else None,
     )
 
     # Test connection

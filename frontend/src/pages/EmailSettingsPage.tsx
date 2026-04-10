@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { emailAccountsApi } from '@/services/api';
 import { EmailAccount, EmailAccountCreate } from '@/types';
 import { Mail, Plus, Trash2, RefreshCw, Check, X } from 'lucide-react';
@@ -40,6 +41,7 @@ export function EmailSettingsPage() {
 
     try {
       await emailAccountsApi.create(formData);
+      toast.success('Email account connected');
       setShowAddForm(false);
       setFormData({
         provider: 'gmail',
@@ -50,7 +52,9 @@ export function EmailSettingsPage() {
       await fetchAccounts();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Failed to add email account');
+      const msg = error.response?.data?.detail || 'Failed to add email account';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -61,8 +65,10 @@ export function EmailSettingsPage() {
 
     try {
       await emailAccountsApi.delete(id);
+      toast.success('Email account removed');
       await fetchAccounts();
     } catch (error) {
+      toast.error('Failed to remove email account');
       console.error('Failed to delete account:', error);
     }
   };
@@ -70,8 +76,9 @@ export function EmailSettingsPage() {
   const handleSync = async (id: number) => {
     try {
       await emailAccountsApi.sync(id);
-      alert('Sync started! New emails will be processed shortly.');
+      toast.success('Sync started! New emails will be processed shortly.');
     } catch (error) {
+      toast.error('Failed to start sync');
       console.error('Failed to sync:', error);
     }
   };

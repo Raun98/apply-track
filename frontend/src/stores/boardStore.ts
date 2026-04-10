@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Application, ApplicationStatus, BoardColumn, BoardData, StatsOverview } from '@/types';
-import { boardApi } from '@/services/api';
+import { authApi, boardApi } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 
 // ---------- WebSocket singleton ----------
@@ -174,7 +174,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         set({ wsConnected: false });
         // Auto-reconnect if user is still logged in
         if (useAuthStore.getState().isAuthenticated) {
-          wsReconnectTimer = setTimeout(connect, WS_RECONNECT_DELAY_MS);
+          wsReconnectTimer = setTimeout(async () => {
+            // Before reconnecting, refresh auth token if needed
+            const { refreshToken } = useAuthStore.getState();
+            if (refreshToken) {
+              try {
+                const res = await authApi.refresh(refreshToken);
+                const { access_token } = res.data;
+                useAuthStore.getState().setTokens(access_token, refreshToken);
+              } catch {
+                // Token refresh failed — user will be logged out by interceptor
+                return;
+              }
+            }
+            connect();
+          }, WS_RECONNECT_DELAY_MS);
         }
       };
     };

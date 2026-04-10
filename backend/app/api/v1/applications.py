@@ -7,6 +7,7 @@ from sqlalchemy import select, desc, func
 from app.api.deps import get_db, get_current_active_user
 from app.models.user import User
 from app.models.application import Application, ApplicationStatus, JobSource, StatusHistory, Activity
+from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
 from app.schemas import (
     ApplicationCreate,
     ApplicationUpdate,
@@ -82,6 +83,32 @@ async def create_application(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Create a new job application manually."""
+    # Plan limit enforcement
+    sub_result = await db.execute(
+        select(Subscription)
+        .where(Subscription.user_id == current_user.id)
+        .where(Subscription.status == SubscriptionStatus.ACTIVE)
+    )
+    active_sub = sub_result.scalar_one_or_none()
+    if active_sub:
+        plan_result = await db.execute(
+            select(SubscriptionPlan).where(SubscriptionPlan.id == active_sub.plan_id)
+        )
+        plan = plan_result.scalar_one_or_none()
+        if plan and plan.features:
+            max_apps = plan.features.get("max_applications")
+            # max_apps of None or -1 means unlimited
+            if max_apps is not None and max_apps != -1:
+                count_result = await db.execute(
+                    select(func.count()).where(Application.user_id == current_user.id)
+                )
+                current_count = count_result.scalar()
+                if current_count >= max_apps:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Application limit reached for your plan. Please upgrade.",
+                    )
+
     # Map source
     source_enum = JobSource.MANUAL
     if data.source:

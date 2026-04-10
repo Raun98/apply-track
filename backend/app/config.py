@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # Email Processing
     IMAP_POLL_INTERVAL_MINUTES: int = 5
     WEBHOOK_SECRET: str = "webhook-secret-change-in-production"
+    INBOX_DOMAIN: str = "inbox.applytrack.app"
+
+    # Encryption
+    ENCRYPTION_KEY: str = ""  # Fernet key — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
     # CORS - configurable via environment variable (comma-separated)
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]

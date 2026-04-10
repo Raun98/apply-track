@@ -46,8 +46,8 @@ function App() {
 
   return (
     <Routes>
-      {/* Debug route */}
-      <Route path="/debug" element={<DebugPage />} />
+      {/* Debug route — dev only */}
+      {!import.meta.env.PROD && <Route path="/debug" element={<DebugPage />} />}
       
       {/* Public routes - unauthenticated users see these */}
       <Route 

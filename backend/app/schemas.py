@@ -18,8 +18,24 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    name: Optional[str] = None
     is_active: bool
     created_at: datetime
+    inbox_address: Optional[str] = None
+
+    @classmethod
+    def model_validate(cls, obj, *args, **kwargs):
+        instance = super().model_validate(obj, *args, **kwargs)
+        if instance.inbox_address is None and hasattr(obj, "id"):
+            from app.config import get_settings
+            settings = get_settings()
+            instance.inbox_address = f"user{obj.id}@{settings.INBOX_DOMAIN}"
+        return instance
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 
 # ============== Application Schemas ==============

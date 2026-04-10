@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.api.deps import get_db
 from app.config import get_settings
@@ -49,11 +50,17 @@ async def receive_email_webhook(
     body_html = data.get("html") or ""
     message_id = data.get("message_id") or data.get("Message-ID") or f"webhook-{datetime.utcnow().timestamp()}"
 
+    # Dedup: skip if this message_id already exists
+    existing = await db.execute(
+        select(Email).where(Email.message_id == message_id)
+    )
+    if existing.scalar_one_or_none():
+        return {"message": "Duplicate email — skipped", "duplicate": True}
+
     # Extract user_id from to_address (e.g., user123@tracker.app)
     user_id = None
     if "@" in to_address:
         local_part = to_address.split("@")[0]
-        # Try to extract numeric user ID
         if local_part.startswith("user"):
             try:
                 user_id = int(local_part[4:])
@@ -128,6 +135,13 @@ async def receive_raw_email(
         subject = msg["Subject"] or ""
         message_id = msg["Message-ID"] or f"raw-{datetime.utcnow().timestamp()}"
 
+        # Dedup: skip if this message_id already exists
+        existing = await db.execute(
+            select(Email).where(Email.message_id == message_id)
+        )
+        if existing.scalar_one_or_none():
+            return {"message": "Duplicate email — skipped", "duplicate": True}
+
         # Extract body
         body_text = ""
         body_html = ""
@@ -170,7 +184,7 @@ async def receive_raw_email(
             from_address=from_address,
             to_address=to_address,
             subject=subject,
-            body_text=body_text[:10000],  # Limit size
+            body_text=body_text[:10000],
             body_html=body_html[:10000] if body_html else None,
             received_at=datetime.utcnow(),
             processed_status=ProcessedStatus.PENDING,

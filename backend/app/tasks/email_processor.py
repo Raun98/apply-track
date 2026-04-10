@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -7,18 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.models.email import Email, ProcessedStatus
-from app.models.application import Application
+from app.models.application import Application, Activity
 from app.services.email_parser import email_parser, ParsedEmailResult
 from app.services.application_matcher import ApplicationMatcherService
-from app.services.websocket_manager import websocket_manager
+from app.services.websocket_manager import WebSocketManager
+
+logger = logging.getLogger(__name__)
 
 
 async def process_email_async(email_id: int) -> bool:
     """Process a single email asynchronously."""
     async with AsyncSessionLocal() as db:
         try:
-            # Get email
             from sqlalchemy import select
+
             result = await db.execute(
                 select(Email).where(Email.id == email_id)
             )
@@ -70,6 +73,7 @@ async def process_email_async(email_id: int) -> bool:
             if application:
                 # Update existing application
                 if parsed.application_status:
+                    old_status = application.status.value if hasattr(application.status, "value") else str(application.status)
                     status_changed = await matcher.update_application_status(
                         application=application,
                         new_status=parsed.application_status,
@@ -78,16 +82,41 @@ async def process_email_async(email_id: int) -> bool:
                     )
 
                     if status_changed:
-                        # Notify via WebSocket
-                        await websocket_manager.notify_application_update(
+                        # Create Activity record for status change
+                        activity = Activity(
                             user_id=email.user_id,
                             application_id=application.id,
-                            update_type="status_change",
+                            type="status_change",
+                            description=f"Status changed from {old_status} to {parsed.application_status}: {parsed.key_info_summary or ''}".strip(),
+                            extra_data={
+                                "from_status": old_status,
+                                "to_status": parsed.application_status,
+                                "email_id": email.id,
+                            },
+                        )
+                        db.add(activity)
+
+                        # Notify via WebSocket (sync — from Celery worker)
+                        WebSocketManager.publish_sync(
+                            user_id=email.user_id,
+                            event="status_change",
                             data={
+                                "application_id": application.id,
                                 "new_status": parsed.application_status,
                                 "reason": parsed.key_info_summary,
                             },
                         )
+
+                # Record interview details if present
+                if parsed.interview_details:
+                    interview_activity = Activity(
+                        user_id=email.user_id,
+                        application_id=application.id,
+                        type="interview",
+                        description=f"Interview details received: {parsed.interview_details}",
+                        extra_data={"interview_details": parsed.interview_details, "email_id": email.id},
+                    )
+                    db.add(interview_activity)
 
                 email.application_id = application.id
             else:
@@ -103,12 +132,22 @@ async def process_email_async(email_id: int) -> bool:
                     )
                     email.application_id = application.id
 
-                    # Notify about new application
-                    await websocket_manager.notify_application_update(
+                    # Activity for new application
+                    activity = Activity(
                         user_id=email.user_id,
                         application_id=application.id,
-                        update_type="new_application",
+                        type="new_application",
+                        description=f"Application auto-created from email: {parsed.company_name} — {parsed.position_title}",
+                        extra_data={"source": parsed.source_platform, "email_id": email.id},
+                    )
+                    db.add(activity)
+
+                    # Notify about new application (sync)
+                    WebSocketManager.publish_sync(
+                        user_id=email.user_id,
+                        event="new_application",
                         data={
+                            "application_id": application.id,
                             "company": parsed.company_name,
                             "position": parsed.position_title,
                             "status": parsed.application_status or "applied",
@@ -118,11 +157,14 @@ async def process_email_async(email_id: int) -> bool:
             email.processed_status = ProcessedStatus.PROCESSED
             await db.commit()
 
-            # Notify about processed email
-            await websocket_manager.notify_new_email(
+            # Notify about processed email (sync)
+            WebSocketManager.publish_sync(
                 user_id=email.user_id,
-                email_id=email.id,
-                application_id=email.application_id,
+                event="new_email",
+                data={
+                    "email_id": email.id,
+                    "application_id": email.application_id,
+                },
             )
 
             return True
@@ -130,7 +172,6 @@ async def process_email_async(email_id: int) -> bool:
         except Exception as e:
             await db.rollback()
 
-            # Update email status to failed
             result = await db.execute(
                 select(Email).where(Email.id == email_id)
             )
@@ -149,7 +190,6 @@ def process_email(self, email_id: int) -> bool:
     try:
         return asyncio.run(process_email_async(email_id))
     except Exception as exc:
-        # Retry on failure
         raise self.retry(exc=exc, countdown=60)
 
 
@@ -171,11 +211,9 @@ async def poll_imap_account_async(account_id: int) -> int:
         imap_service = IMAPService()
         new_emails = await imap_service.fetch_new_emails(account, db)
 
-        # Queue each new email for processing
         for email in new_emails:
             process_email.delay(email.id)
 
-        # Update last sync time
         account.last_sync_at = datetime.utcnow()
         await db.commit()
 

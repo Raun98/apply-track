@@ -3,6 +3,10 @@ import { useAuthStore } from '@/stores/authStore';
 export function DebugPage() {
   const { isAuthenticated, accessToken, refreshToken, user } = useAuthStore();
 
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 p-8">
       <div className="max-w-2xl mx-auto">

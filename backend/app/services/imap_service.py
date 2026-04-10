@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.email import Email, ProcessedStatus
 from app.models.email_account import EmailAccount
+from app.services.encryption import decrypt_password
 
 
 class IMAPService:
@@ -45,7 +46,7 @@ class IMAPService:
         try:
             with MailBox(settings["host"]).login(
                 account.imap_username or account.email,
-                account.imap_password,
+                decrypt_password(account.imap_password) if account.imap_password else "",
             ) as mailbox:
                 # Search criteria - emails since last sync or last 7 days
                 since_date = account.last_sync_at or datetime.utcnow() - __import__('datetime').timedelta(days=7)
@@ -98,7 +99,7 @@ class IMAPService:
         try:
             with MailBox(settings["host"]).login(
                 account.imap_username or account.email,
-                account.imap_password,
+                decrypt_password(account.imap_password) if account.imap_password else "",
             ) as mailbox:
                 return mailbox.folder.exists("INBOX")
         except Exception:

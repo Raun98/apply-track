@@ -26,7 +26,7 @@ export function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
               <Briefcase className="w-8 h-8 text-blue-500" />
-              <span className="text-xl font-bold text-white">Job Tracker</span>
+              <span className="text-xl font-bold text-white">ApplyTrack</span>
             </div>
 
             {/* Desktop Menu */}
@@ -112,7 +112,7 @@ export function LandingPage() {
           </h1>
 
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Stop juggling spreadsheets and emails. Job Tracker automatically organizes your
+            Stop juggling spreadsheets and emails. ApplyTrack automatically organizes your
             applications, tracks their status, and keeps you updated—all in one beautiful dashboard.
           </p>
 
@@ -130,18 +130,18 @@ export function LandingPage() {
           </div>
 
           {/* Hero Stats */}
-          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto text-sm">
+          <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto text-sm">
             <div>
-              <div className="text-2xl font-bold text-blue-400">100%</div>
-              <div className="text-slate-400">Free to Use</div>
+              <div className="text-2xl font-bold text-blue-400">Smart</div>
+              <div className="text-slate-400">Email Parsing</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-cyan-400">0</div>
-              <div className="text-slate-400">Setup Time</div>
+              <div className="text-2xl font-bold text-cyan-400">Live</div>
+              <div className="text-slate-400">Real-time Updates</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-400">∞</div>
-              <div className="text-slate-400">Applications</div>
+              <div className="text-2xl font-bold text-purple-400">Visual</div>
+              <div className="text-slate-400">Kanban Board</div>
             </div>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function LandingPage() {
       <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-16 text-center">
-            Why Choose Job Tracker?
+            Why Choose ApplyTrack?
           </h2>
 
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -321,14 +321,13 @@ export function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Free Plan */}
             <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-8">
-              <h3 className="text-2xl font-bold text-white mb-2">Starter</h3>
-              <p className="text-slate-400 mb-6">Perfect to get started</p>
+              <h3 className="text-2xl font-bold text-white mb-2">Free</h3>
+              <p className="text-slate-400 mb-6">Get started tracking your applications</p>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$0</span>
-                <span className="text-slate-400">/month</span>
+                <span className="text-4xl font-bold text-white">Free</span>
               </div>
               <ul className="space-y-3 mb-8">
-                {['Up to 50 applications', 'Email integration', 'Basic analytics', 'Kanban board'].map(
+                {['Up to 10 applications', '1 email account', 'Kanban board', 'Basic analytics'].map(
                   (feature, i) => (
                     <li key={i} className="flex gap-2 items-center text-slate-300">
                       <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
@@ -351,19 +350,18 @@ export function LandingPage() {
                 <Star className="w-4 h-4 text-blue-300" />
                 <span className="text-sm font-medium text-blue-300">Most Popular</span>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Professional</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
               <p className="text-slate-300 mb-6">For serious job seekers</p>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$9.99</span>
+                <span className="text-4xl font-bold text-white">&#8377;499</span>
                 <span className="text-slate-400">/month</span>
               </div>
               <ul className="space-y-3 mb-8">
                 {[
                   'Unlimited applications',
+                  '3 email accounts',
+                  'AI-powered email parsing',
                   'Advanced analytics',
-                  'Interview scheduling',
-                  'Priority support',
-                  'Custom templates',
                 ].map((feature, i) => (
                   <li key={i} className="flex gap-2 items-center text-slate-200">
                     <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
@@ -375,24 +373,24 @@ export function LandingPage() {
                 to="/register"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition text-center"
               >
-                Start Free Trial
+                Get Started
               </Link>
             </div>
 
-            {/* Enterprise Plan */}
+            {/* Premium Plan */}
             <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-8">
-              <h3 className="text-2xl font-bold text-white mb-2">Enterprise</h3>
-              <p className="text-slate-400 mb-6">For teams and organizations</p>
+              <h3 className="text-2xl font-bold text-white mb-2">Premium</h3>
+              <p className="text-slate-400 mb-6">Full feature access</p>
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">Custom</span>
+                <span className="text-4xl font-bold text-white">&#8377;999</span>
+                <span className="text-slate-400">/month</span>
               </div>
               <ul className="space-y-3 mb-8">
                 {[
                   'Everything in Pro',
-                  'Team management',
-                  'API access',
-                  'Dedicated support',
-                  'Custom integrations',
+                  'Unlimited email accounts',
+                  'Priority support',
+                  'AI matching & analytics',
                 ].map((feature, i) => (
                   <li key={i} className="flex gap-2 items-center text-slate-300">
                     <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
@@ -400,9 +398,12 @@ export function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <button className="w-full border border-slate-500 hover:border-slate-400 text-white py-2 rounded-lg font-semibold transition">
-                Contact Sales
-              </button>
+              <Link
+                to="/register"
+                className="w-full border border-slate-500 hover:border-slate-400 text-white py-2 rounded-lg font-semibold transition text-center"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </div>
@@ -434,7 +435,7 @@ export function LandingPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Briefcase className="w-6 h-6 text-blue-500" />
-                <span className="font-bold text-white">Job Tracker</span>
+                <span className="font-bold text-white">ApplyTrack</span>
               </div>
               <p className="text-slate-400 text-sm">
                 The smartest way to track your job applications.
@@ -488,7 +489,7 @@ export function LandingPage() {
           </div>
           <div className="border-t border-slate-700 pt-8">
             <p className="text-center text-slate-400 text-sm">
-              © 2026 Job Tracker. All rights reserved.
+              © 2026 ApplyTrack. All rights reserved.
             </p>
           </div>
         </div>

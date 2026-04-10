@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { Application, ApplicationCreate, ApplicationUpdate, StatusHistory } from '@/types';
 import { applicationsApi } from '@/services/api';
 import {
@@ -106,13 +107,17 @@ export function ApplicationModal({ application, onClose }: ApplicationModalProps
     try {
       if (isEditing) {
         await applicationsApi.update(application.id, formData);
+        toast.success('Application saved');
       } else {
         await applicationsApi.create(formData);
+        toast.success('Application created');
       }
       onClose();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      setError(e.response?.data?.detail || 'Failed to save application');
+      const msg = e.response?.data?.detail || 'Failed to save application';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -123,10 +128,13 @@ export function ApplicationModal({ application, onClose }: ApplicationModalProps
     setIsLoading(true);
     try {
       await applicationsApi.delete(application.id);
+      toast.success('Application deleted');
       onClose();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      setError(e.response?.data?.detail || 'Failed to delete application');
+      const msg = e.response?.data?.detail || 'Failed to delete application';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
