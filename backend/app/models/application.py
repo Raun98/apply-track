@@ -29,6 +29,7 @@ class ApplicationStatus(str, enum.Enum):
     OFFER = "offer"
     REJECTED = "rejected"
     ACCEPTED = "accepted"
+    UPDATE = "update"  # Transient status from LLM — remapped to latest known status in matcher
 
 
 class JobSource(str, enum.Enum):

@@ -79,6 +79,12 @@ class StatusHistoryResponse(BaseModel):
 
 # ============== Activity Schemas ==============
 
+class ActivityCreate(BaseModel):
+    type: str = "note"  # e.g. note, call, email, interview
+    description: str
+    extra_data: Optional[dict] = None
+
+
 class ActivityResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

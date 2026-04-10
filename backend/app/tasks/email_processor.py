@@ -37,6 +37,7 @@ async def process_email_async(email_id: int) -> bool:
                 from_address=email.from_address,
                 body=email.body_text or "",
                 date=email.received_at.isoformat(),
+                body_html=email.body_html or "",
             )
 
             if not parsed or not parsed.is_job_email:

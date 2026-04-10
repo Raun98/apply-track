@@ -92,6 +92,11 @@ export const applicationsApi = {
   delete: (id: number) => api.delete(`/applications/${id}`),
 
   getHistory: (id: number) => api.get(`/applications/${id}/history`),
+
+  getActivities: (id: number) => api.get(`/applications/${id}/activities`),
+
+  addActivity: (id: number, data: { type: string; description: string; extra_data?: Record<string, unknown> }) =>
+    api.post(`/applications/${id}/activities`, data),
 };
 
 // Board API

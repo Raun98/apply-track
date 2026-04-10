@@ -126,3 +126,17 @@ export interface Subscription {
 export interface SubscriptionCreate {
   plan_id: number;
 }
+
+export interface Activity {
+  id: number;
+  type: string;
+  description: string;
+  extra_data?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ActivityCreate {
+  type: string;
+  description: string;
+  extra_data?: Record<string, unknown>;
+}

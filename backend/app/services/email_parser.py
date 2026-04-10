@@ -1,5 +1,6 @@
 import json
 import re
+from html.parser import HTMLParser
 from typing import Optional
 
 import httpx
@@ -88,14 +89,47 @@ class EmailParserService:
         if settings.ANTHROPIC_API_KEY:
             self._anthropic = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    def _clean_body(self, body: str) -> str:
-        """Clean email body for parsing."""
-        if not body:
+    @staticmethod
+    def _html_to_text(html: str) -> str:
+        """Strip HTML tags and decode entities to plain text."""
+        class _Stripper(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self._parts: list[str] = []
+                self._skip = False
+
+            def handle_starttag(self, tag, attrs):
+                if tag in ("script", "style"):
+                    self._skip = True
+                elif tag in ("br", "p", "div", "tr", "li"):
+                    self._parts.append("\n")
+
+            def handle_endtag(self, tag):
+                if tag in ("script", "style"):
+                    self._skip = False
+
+            def handle_data(self, data):
+                if not self._skip:
+                    self._parts.append(data)
+
+            def get_text(self) -> str:
+                return re.sub(r" {2,}", " ", "".join(self._parts)).strip()
+
+        stripper = _Stripper()
+        stripper.feed(html)
+        return stripper.get_text()
+
+    def _clean_body(self, body_text: str, body_html: str = "") -> str:
+        """Return cleaned plain text, falling back to stripped HTML if text is empty."""
+        text = body_text or ""
+        if not text.strip() and body_html:
+            text = self._html_to_text(body_html)
+        if not text:
             return ""
         # Remove excessive whitespace
-        body = re.sub(r'\s+', ' ', body)
+        text = re.sub(r'\s+', ' ', text)
         # Limit length for API
-        return body[:8000]
+        return text[:8000]
 
     def _extract_from_patterns(self, subject: str, body: str, from_address: str) -> dict:
         """Extract basic info using regex patterns as fallback."""
@@ -225,9 +259,10 @@ class EmailParserService:
         from_address: str,
         body: str,
         date: str,
+        body_html: str = "",
     ) -> Optional[ParsedEmailResult]:
         """Parse email with Claude, then Ollama if configured, then heuristics."""
-        cleaned_body = self._clean_body(body)
+        cleaned_body = self._clean_body(body, body_html)
         prompt = USER_PROMPT_TEMPLATE.format(
             subject=subject,
             from_address=from_address,

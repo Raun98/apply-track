@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { useBoardStore } from '@/stores/boardStore';
 import {
   LayoutDashboard,
   Kanban,
@@ -8,11 +10,19 @@ import {
   LogOut,
   Briefcase,
   CreditCard,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 export function Layout() {
   const { user, logout } = useAuthStore();
+  const { connectWebSocket, disconnectWebSocket, wsConnected } = useBoardStore();
   const location = useLocation();
+
+  useEffect(() => {
+    connectWebSocket();
+    return () => disconnectWebSocket();
+  }, [connectWebSocket, disconnectWebSocket]);
 
   const navigation = [
     { name: 'Board', href: '/board', icon: Kanban },
@@ -28,9 +38,16 @@ export function Layout() {
       <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200">
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center px-6 py-4 border-b border-gray-200">
-            <Briefcase className="w-8 h-8 text-blue-600" />
-            <span className="ml-3 text-xl font-bold text-gray-900">Job Tracker</span>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center">
+              <Briefcase className="w-8 h-8 text-blue-600" />
+              <span className="ml-3 text-xl font-bold text-gray-900">ApplyTrack</span>
+            </div>
+            <span title={wsConnected ? 'Live updates active' : 'Connecting...'} className="ml-2">
+              {wsConnected
+                ? <Wifi className="w-4 h-4 text-green-500" />
+                : <WifiOff className="w-4 h-4 text-gray-300" />}
+            </span>
           </div>
 
           {/* Navigation */}

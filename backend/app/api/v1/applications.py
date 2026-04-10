@@ -6,13 +6,15 @@ from sqlalchemy import select, desc, func
 
 from app.api.deps import get_db, get_current_active_user
 from app.models.user import User
-from app.models.application import Application, ApplicationStatus, JobSource, StatusHistory
+from app.models.application import Application, ApplicationStatus, JobSource, StatusHistory, Activity
 from app.schemas import (
     ApplicationCreate,
     ApplicationUpdate,
     ApplicationResponse,
     ApplicationListResponse,
     StatusHistoryResponse,
+    ActivityResponse,
+    ActivityCreate,
 )
 
 router = APIRouter()
@@ -230,7 +232,6 @@ async def get_application_history(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Get status history for an application."""
-    # Verify application belongs to user
     result = await db.execute(
         select(Application).where(
             (Application.id == application_id) &
@@ -250,3 +251,63 @@ async def get_application_history(
     )
 
     return result.scalars().all()
+
+
+@router.get("/{application_id}/activities", response_model=List[ActivityResponse])
+async def get_application_activities(
+    application_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get activity log for an application."""
+    result = await db.execute(
+        select(Application).where(
+            (Application.id == application_id) &
+            (Application.user_id == current_user.id)
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.application_id == application_id)
+        .order_by(desc(Activity.created_at))
+    )
+    return result.scalars().all()
+
+
+@router.post("/{application_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
+async def add_application_activity(
+    application_id: int,
+    data: ActivityCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Add a manual activity note to an application."""
+    result = await db.execute(
+        select(Application).where(
+            (Application.id == application_id) &
+            (Application.user_id == current_user.id)
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    activity = Activity(
+        user_id=current_user.id,
+        application_id=application_id,
+        type=data.type,
+        description=data.description,
+        extra_data=data.extra_data or {},
+    )
+    db.add(activity)
+    await db.commit()
+    await db.refresh(activity)
+    return activity

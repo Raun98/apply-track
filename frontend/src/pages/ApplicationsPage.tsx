@@ -5,11 +5,13 @@ import { format } from 'date-fns';
 import {
   Search,
   Filter,
-  MoreHorizontal,
+  Plus,
+  Pencil,
   Linkedin,
   Globe,
   Mail,
 } from 'lucide-react';
+import { ApplicationModal } from '@/components/Modals/ApplicationModal';
 
 const sourceIcons: Record<JobSource, React.ReactNode> = {
   linkedin: <Linkedin className="w-4 h-4 text-blue-600" />,
@@ -35,6 +37,8 @@ export function ApplicationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   const fetchApplications = async () => {
     setIsLoading(true);
@@ -65,6 +69,13 @@ export function ApplicationsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
           <p className="text-gray-600 mt-1">Manage and track all your job applications</p>
         </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center px-4 py-2 text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm font-medium"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Application
+        </button>
       </div>
 
       {/* Filters */}
@@ -185,8 +196,12 @@ export function ApplicationsPage() {
                       {format(new Date(app.applied_date), 'MMM d, yyyy')}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors">
-                        <MoreHorizontal className="w-5 h-5" />
+                      <button
+                        onClick={() => setSelectedApplication(app)}
+                        className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -221,6 +236,24 @@ export function ApplicationsPage() {
           </div>
         )}
       </div>
+      {/* Modals */}
+      {isCreateModalOpen && (
+        <ApplicationModal
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            fetchApplications();
+          }}
+        />
+      )}
+      {selectedApplication && (
+        <ApplicationModal
+          application={selectedApplication}
+          onClose={() => {
+            setSelectedApplication(null);
+            fetchApplications();
+          }}
+        />
+      )}
     </div>
   );
 }
