@@ -9,24 +9,9 @@ let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const WS_RECONNECT_DELAY_MS = 5000;
 
 function getWsUrl(token: string): string {
-  const apiBase = import.meta.env.VITE_API_BASE_URL;
-  let host: string;
-
-  if (apiBase && typeof apiBase === 'string' && apiBase.trim() !== '') {
-    try {
-      // e.g. https://backend.railway.app/api/v1  -> wss://backend.railway.app
-      const url = new URL(apiBase);
-      host = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}`;
-    } catch {
-      // Fallback to same host as frontend
-      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      host = `${proto}://${window.location.host}`;
-    }
-  } else {
-    // Dev proxy - same host as the frontend
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    host = `${proto}://${window.location.host}`;
-  }
+  // Use relative URL - nginx will proxy to backend and handle WebSocket upgrade
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const host = `${proto}://${window.location.host}`;
   return `${host}/api/v1/ws?token=${encodeURIComponent(token)}`;
 }
 
