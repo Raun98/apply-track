@@ -3,6 +3,7 @@ from app.models.application import Application, ApplicationStatus, JobSource, St
 from app.models.email import Email
 from app.models.email_account import EmailAccount
 from app.models.subscription import Subscription, SubscriptionPlan
+from app.models.coupon import Coupon
 
 __all__ = [
     "User",
@@ -15,4 +16,5 @@ __all__ = [
     "EmailAccount",
     "Subscription",
     "SubscriptionPlan",
+    "Coupon",
 ]

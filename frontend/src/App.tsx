@@ -11,6 +11,7 @@ import { ApplicationsPage } from '@/pages/ApplicationsPage';
 import { EmailSettingsPage } from '@/pages/EmailSettingsPage';
 import { SubscriptionPage } from '@/pages/SubscriptionPage';
 import { DebugPage } from '@/pages/DebugPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { Loader2 } from 'lucide-react';
 
 function App() {
@@ -72,6 +73,7 @@ function App() {
             <Route path="applications" element={<ApplicationsPage />} />
             <Route path="email-settings" element={<EmailSettingsPage />} />
             <Route path="subscription" element={<SubscriptionPage />} />
+            <Route path="admin" element={<AdminPage />} />
           </Route>
         </>
       )}
