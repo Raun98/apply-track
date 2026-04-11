@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Users, CreditCard, Gift, BarChart3, RefreshCw, Plus, Trash2, Edit2, Loader2 } from 'lucide-react';
+import { Users, CreditCard, Gift, BarChart3, RefreshCw, Plus, Trash2, Loader2 } from 'lucide-react';
 import { api } from '@/services/api';
 
 type Tab = 'overview' | 'plans' | 'coupons' | 'users' | 'subscriptions';
@@ -55,9 +55,9 @@ export function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
 
   // Modal states
-  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [_showPlanModal, _setShowPlanModal] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [_editingPlan, _setEditingPlan] = useState<Plan | null>(null);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
   useEffect(() => {
