@@ -9,7 +9,7 @@ let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const WS_RECONNECT_DELAY_MS = 5000;
 
 function getWsUrl(token: string): string {
-  const apiBase = (import.meta as any).env.VITE_API_BASE_URL as string | undefined;
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
   let host: string;
   if (apiBase) {
     // e.g. https://backend.railway.app/api/v1  → wss://backend.railway.app

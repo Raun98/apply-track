@@ -24,7 +24,7 @@ const CARDS_PER_COLUMN = 15; // Show 15 cards per column, then "Load More"
 
 export function BoardPage() {
   const { columns, applications, isLoading, fetchBoardData, moveApplication } = useBoardStore();
-  const { user } = useAuthStore();
+  const {  } = useAuthStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 // In production, set VITE_API_BASE_URL to your backend URL
 // Example: VITE_API_BASE_URL=https://backend-your-service.up.railway.app/api/v1
 // In development, defaults to relative path for Vite proxy
-const API_URL = (import.meta as any).env.VITE_API_BASE_URL || '/api/v1';
+const API_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_URL,
