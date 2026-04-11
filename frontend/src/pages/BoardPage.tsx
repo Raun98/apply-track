@@ -12,7 +12,6 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBoardStore } from '@/stores/boardStore';
-import { useAuthStore } from '@/stores/authStore';
 import { BoardColumn } from '@/components/Board/BoardColumn';
 import { ApplicationCard } from '@/components/Cards/ApplicationCard';
 import { OnboardingEmptyState } from '@/components/OnboardingEmptyState';
@@ -24,7 +23,6 @@ const CARDS_PER_COLUMN = 15; // Show 15 cards per column, then "Load More"
 
 export function BoardPage() {
   const { columns, applications, isLoading, fetchBoardData, moveApplication } = useBoardStore();
-  const {  } = useAuthStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

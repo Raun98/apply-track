@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { emailAccountsApi } from '@/services/api';
 import { EmailAccount, EmailAccountCreate } from '@/types';
-import { Mail, Plus, Trash2, RefreshCw, Check, X } from 'lucide-react';
+import { Mail, Plus, Trash2, RefreshCw, Check, X, Copy } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 
 export function EmailSettingsPage() {
+  const { user } = useAuthStore();
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -83,6 +85,13 @@ export function EmailSettingsPage() {
     }
   };
 
+  const handleCopyInbox = () => {
+    if (user?.inbox_address) {
+      navigator.clipboard.writeText(user.inbox_address);
+      toast.success('Address copied to clipboard');
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -110,8 +119,19 @@ export function EmailSettingsPage() {
             <p className="text-blue-700 mt-1">
               Forward job application emails to your unique address to automatically track them.
             </p>
-            <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
-              <code className="text-sm text-gray-700">your-user-id@tracker.yourdomain.com</code>
+            <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200 flex items-center justify-between">
+              <code className="text-sm text-gray-700 font-mono">
+                {user?.inbox_address || 'Loading...'}
+              </code>
+              {user?.inbox_address && (
+                <button
+                  onClick={handleCopyInbox}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  title="Copy to clipboard"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
