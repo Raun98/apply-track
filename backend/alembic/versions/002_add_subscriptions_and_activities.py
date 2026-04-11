@@ -17,12 +17,15 @@ depends_on = None
 def upgrade() -> None:
     # ----------------------------------------------------------------
     # ALTER TYPE ADD VALUE must run outside any transaction block.
-    # We obtain the raw connection and execute with AUTOCOMMIT isolation.
+    # Create a separate raw connection with AUTOCOMMIT isolation.
     # ----------------------------------------------------------------
-    connection = op.get_bind()
-    connection.execution_options(isolation_level="AUTOCOMMIT").execute(
-        sa.text("ALTER TYPE applicationstatus ADD VALUE IF NOT EXISTS 'UPDATE'")
-    )
+    from sqlalchemy import create_engine
+    from app.config import get_settings
+    settings = get_settings()
+    engine = create_engine(settings.DATABASE_URL)
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(sa.text("ALTER TYPE applicationstatus ADD VALUE IF NOT EXISTS 'UPDATE'"))
+    engine.dispose()
 
     # ----------------------------------------------------------------
     # subscription_plans
