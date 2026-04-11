@@ -1,1 +1,1 @@
-from .razorpay_service import razorpay_service, RazorpayService
+from .razorpay_service import get_razorpay_service, RazorpayService
