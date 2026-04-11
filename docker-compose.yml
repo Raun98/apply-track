@@ -110,14 +110,14 @@ services:
     command: celery -A app.tasks.celery_app beat --loglevel=info
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: prod
-      args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://backend:8000/api/v1}
+    image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - /opt/docker-nginx/nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
+      - /opt/docker-nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend
 
