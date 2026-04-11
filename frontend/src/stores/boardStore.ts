@@ -11,12 +11,19 @@ const WS_RECONNECT_DELAY_MS = 5000;
 function getWsUrl(token: string): string {
   const apiBase = import.meta.env.VITE_API_BASE_URL;
   let host: string;
-  if (apiBase) {
-    // e.g. https://backend.railway.app/api/v1  → wss://backend.railway.app
-    const url = new URL(apiBase);
-    host = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}`;
+
+  if (apiBase && typeof apiBase === 'string' && apiBase.trim() !== '') {
+    try {
+      // e.g. https://backend.railway.app/api/v1  -> wss://backend.railway.app
+      const url = new URL(apiBase);
+      host = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}`;
+    } catch {
+      // Fallback to same host as frontend
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      host = `${proto}://${window.location.host}`;
+    }
   } else {
-    // Dev proxy — same host as the frontend
+    // Dev proxy - same host as the frontend
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     host = `${proto}://${window.location.host}`;
   }
@@ -154,7 +161,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
               fetchStats();
               break;
             case 'new_email':
-              // An email was processed — re-fetch to pick up any new card
+              // An email was processed - re-fetch to pick up any new card
               fetchBoardData();
               break;
             default:
@@ -183,7 +190,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
                 const { access_token } = res.data;
                 useAuthStore.getState().setTokens(access_token, refreshToken);
               } catch {
-                // Token refresh failed — user will be logged out by interceptor
+                // Token refresh failed - user will be logged out by interceptor
                 return;
               }
             }
