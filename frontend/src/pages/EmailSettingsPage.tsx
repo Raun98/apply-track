@@ -26,7 +26,7 @@ export function EmailSettingsPage() {
       const response = await emailAccountsApi.getAll();
       setAccounts(response.data);
     } catch (error) {
-      console.error('Failed to fetch accounts:', error);
+      toast.error('Failed to fetch accounts');
     } finally {
       setIsLoading(false);
     }

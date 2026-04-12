@@ -20,6 +20,7 @@ export function SubscriptionPage() {
   const [currentSub, setCurrentSub] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -28,7 +29,10 @@ export function SubscriptionPage() {
     ]).then(([plansRes, subRes]) => {
       setPlans(plansRes.data);
       setCurrentSub(subRes.data);
-    }).catch(console.error).finally(() => setLoading(false));
+    }).catch((err) => {
+      const msg = err instanceof Error ? err.message : 'Failed to load subscription data';
+      setError(msg);
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleSubscribe = async (planId: number) => {
@@ -79,6 +83,13 @@ export function SubscriptionPage() {
         <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
         <p className="text-gray-600">Choose a plan that fits your needs</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+          <p className="font-medium">Failed to load subscription data</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      )}
 
       {/* Current subscription banner */}
       {currentSub && currentSub.status === 'active' && (

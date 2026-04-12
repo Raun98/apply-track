@@ -22,7 +22,7 @@ import { ApplicationModal } from '@/components/Modals/ApplicationModal';
 const CARDS_PER_COLUMN = 15; // Show 15 cards per column, then "Load More"
 
 export function BoardPage() {
-  const { columns, applications, isLoading, fetchBoardData, moveApplication } = useBoardStore();
+  const { columns, applications, isLoading, error, fetchBoardData, moveApplication } = useBoardStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -128,6 +128,23 @@ export function BoardPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Failed to load board</p>
+          <p className="text-sm text-gray-500 mt-1">{error}</p>
+          <button
+            onClick={() => fetchBoardData()}
+            className="mt-4 px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

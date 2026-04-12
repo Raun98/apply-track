@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { applicationsApi } from '@/services/api';
 import { Application, ApplicationStatus, JobSource } from '@/types';
 import { format } from 'date-fns';
@@ -34,6 +35,16 @@ export function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+    }, 300);
+  }, []);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -44,7 +55,7 @@ export function ApplicationsPage() {
     setIsLoading(true);
     try {
       const response = await applicationsApi.getAll({
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         page,
         page_size: 20,
@@ -52,7 +63,7 @@ export function ApplicationsPage() {
       setApplications(response.data.items);
       setTotal(response.data.total);
     } catch (error) {
-      console.error('Failed to fetch applications:', error);
+      toast.error('Failed to fetch applications');
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +71,7 @@ export function ApplicationsPage() {
 
   useEffect(() => {
     fetchApplications();
-  }, [searchQuery, statusFilter, page]);
+  }, [debouncedSearch, statusFilter, page]);
 
   return (
     <div className="space-y-6">
@@ -86,7 +97,7 @@ export function ApplicationsPage() {
             type="text"
             placeholder="Search by company or position..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white transition-all"
           />
         </div>

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export function DashboardPage() {
-  const { stats, fetchStats, fetchBoardData } = useBoardStore();
+  const { stats, isLoading, error, fetchStats, fetchBoardData } = useBoardStore();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
@@ -27,7 +27,31 @@ export function DashboardPage() {
     return 'text-green-500';
   };
 
-  // Show onboarding empty state when no applications
+  if (isLoading || (!stats && !error)) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Failed to load dashboard</p>
+          <p className="text-sm text-gray-500 mt-1">{error}</p>
+          <button
+            onClick={() => fetchStats()}
+            className="mt-4 px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (stats && stats.total_applications === 0) {
     return (
       <>
