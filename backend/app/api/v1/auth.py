@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
@@ -113,6 +113,7 @@ async def login(
 
 
 @router.post("/refresh")
+@limiter.limit("20/minute")
 async def refresh_token(
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
@@ -200,7 +201,7 @@ async def forgot_password(
 
     token = secrets.token_urlsafe(32)
     user.password_reset_token = token
-    user.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
+    user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
     await db.commit()
 
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
@@ -218,6 +219,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password", status_code=200)
+@limiter.limit("5/minute")
 async def reset_password(
     data: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -227,7 +229,7 @@ async def reset_password(
         select(User).where(User.password_reset_token == data.token)
     )
     user = result.scalar_one_or_none()
-    if not user or not user.password_reset_expires or user.password_reset_expires < datetime.utcnow():
+    if not user or not user.password_reset_expires or user.password_reset_expires < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
     user.password_hash = get_password_hash(data.new_password)
