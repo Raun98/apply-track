@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,12 @@ from app.api.deps import get_db, get_current_user_ws
 from app.database import AsyncSessionLocal
 from app.services.websocket_manager import manager
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -19,31 +26,28 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    print(f"Starting {settings.APP_NAME}")
+    logger.info(f"Starting {settings.APP_NAME}")
     await manager.startup()
     yield
-    # Shutdown
     await manager.shutdown()
-    print(f"Shutting down {settings.APP_NAME}")
+    logger.info(f"Shutting down {settings.APP_NAME}")
 
+
+is_production = settings.ENVIRONMENT == "production"
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI-powered job application tracking system",
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
-    docs_url=f"{settings.API_V1_PREFIX}/docs",
-    redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if not is_production else None,
+    docs_url=f"{settings.API_V1_PREFIX}/docs" if not is_production else None,
+    redoc_url=f"{settings.API_V1_PREFIX}/redoc" if not is_production else None,
     lifespan=lifespan,
 )
 
-# Rate limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS middleware - must be added before routes
 cors_origins = settings.CORS_ORIGINS
 
 if settings.FRONTEND_URL and settings.FRONTEND_URL not in cors_origins:
@@ -57,7 +61,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
@@ -89,7 +92,7 @@ async def websocket_endpoint(websocket: WebSocket):
         except WebSocketDisconnect:
             manager.disconnect(user.id)
         except Exception as e:
-            print(f"WebSocket error: {e}")
+            logger.error(f"WebSocket error: {e}")
             manager.disconnect(user.id)
 
 

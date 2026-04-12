@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from html.parser import HTMLParser
 from typing import Optional
@@ -9,6 +10,7 @@ from anthropic import Anthropic
 from app.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Shared system prompt for Claude and Ollama
 SYSTEM_PROMPT = """You are an intelligent email parser for a job application tracking system.
@@ -202,7 +204,7 @@ class EmailParserService:
             data = self._json_dict_from_llm_text(content)
             return self._result_from_llm_dict(data)
         except Exception as e:
-            print(f"Error parsing email with Claude: {e}")
+            logger.error(f"Error parsing email with Claude: {e}")
             return None
 
     async def _try_ollama(self, prompt: str) -> Optional[ParsedEmailResult]:
@@ -230,7 +232,7 @@ class EmailParserService:
             data = self._json_dict_from_llm_text(text)
             return self._result_from_llm_dict(data)
         except Exception as e:
-            print(f"Error parsing email with Ollama: {e}")
+            logger.error(f"Error parsing email with Ollama: {e}")
             return None
 
     def _pattern_fallback_result(

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from imap_tools import MailBox, AND
@@ -49,7 +49,7 @@ class IMAPService:
                 decrypt_password(account.imap_password) if account.imap_password else "",
             ) as mailbox:
                 # Search criteria - emails since last sync or last 7 days
-                since_date = account.last_sync_at or datetime.utcnow() - __import__('datetime').timedelta(days=7)
+                since_date = account.last_sync_at or datetime.now(timezone.utc) - timedelta(days=7)
 
                 # Fetch emails
                 for msg in mailbox.fetch(AND(date__gt=since_date.date())):
@@ -74,7 +74,7 @@ class IMAPService:
                         subject=msg.subject,
                         body_text=msg.text,
                         body_html=msg.html,
-                        received_at=msg.date or datetime.utcnow(),
+                        received_at=msg.date or datetime.now(timezone.utc),
                         processed_status=ProcessedStatus.PENDING,
                     )
 
