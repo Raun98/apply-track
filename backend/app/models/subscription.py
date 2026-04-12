@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, JSON, String, Text
@@ -32,17 +32,20 @@ class SubscriptionPlan(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     plan_type: Mapped[PlanType] = mapped_column(Enum(PlanType), nullable=False, unique=True)
-    price_monthly: Mapped[int] = mapped_column(Integer, nullable=False)  # Price in paise/cents
-    price_yearly: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Price in paise/cents
+    price_monthly: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_yearly: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     razorpay_plan_id: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True, unique=True
-    )  # Razorpay plan ID
+    )
+    razorpay_plan_id_yearly: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True, unique=True
+    )
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    features: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # JSON field for features
+    features: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # Relationships
@@ -56,7 +59,7 @@ class Subscription(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     plan_id: Mapped[int] = mapped_column(
         ForeignKey("subscription_plans.id", ondelete="CASCADE"), nullable=False
@@ -79,9 +82,9 @@ class Subscription(Base):
     trial_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     trial_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
     # Relationships

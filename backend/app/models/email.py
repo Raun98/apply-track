@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
@@ -36,7 +36,7 @@ class Email(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     account_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("email_accounts.id", ondelete="SET NULL"), nullable=True
@@ -55,7 +55,7 @@ class Email(Base):
 
     # Timestamps
     received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # Processing
     parsed_data: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
