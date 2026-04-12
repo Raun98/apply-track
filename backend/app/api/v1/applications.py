@@ -50,7 +50,8 @@ async def list_applications(
             pass
 
     if search:
-        search_filter = f"%{search}%"
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_filter = f"%{escaped}%"
         query = query.where(
             (Application.company_name.ilike(search_filter)) |
             (Application.position_title.ilike(search_filter))

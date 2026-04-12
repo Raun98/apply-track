@@ -7,6 +7,7 @@ from sqlalchemy import select, desc
 from app.api.deps import get_db, get_current_active_user
 from app.models.user import User
 from app.models.email_account import EmailAccount, EmailProvider
+from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus
 from app.schemas import EmailAccountCreate, EmailAccountResponse
 from app.services.imap_service import IMAPService
 from app.services.encryption import encrypt_password
@@ -35,6 +36,30 @@ async def create_email_account(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Connect a new email account."""
+    sub_result = await db.execute(
+        select(Subscription)
+        .where(Subscription.user_id == current_user.id)
+        .where(Subscription.status == SubscriptionStatus.ACTIVE)
+    )
+    active_sub = sub_result.scalar_one_or_none()
+    if active_sub:
+        plan_result = await db.execute(
+            select(SubscriptionPlan).where(SubscriptionPlan.id == active_sub.plan_id)
+        )
+        plan = plan_result.scalar_one_or_none()
+        if plan and plan.features:
+            max_accounts = plan.features.get("email_accounts")
+            if max_accounts is not None and max_accounts != -1:
+                count_result = await db.execute(
+                    select(EmailAccount).where(EmailAccount.user_id == current_user.id)
+                )
+                current_count = len(count_result.scalars().all())
+                if current_count >= max_accounts:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Email account limit reached for your plan. Please upgrade.",
+                    )
+
     # Map provider
     provider_enum = EmailProvider.OTHER
     try:
@@ -75,10 +100,10 @@ async def create_email_account(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Could not connect to email server. Please check your credentials.",
                 )
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Connection failed: {str(e)}",
+                detail="Could not connect to email server. Please check your credentials and IMAP settings.",
             )
 
     db.add(account)

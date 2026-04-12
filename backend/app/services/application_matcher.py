@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,10 @@ from sqlalchemy import select, and_, or_
 
 from app.models.application import Application, ApplicationStatus, JobSource
 from app.models.email import Email
+
+
+def _escape_ilike(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 # Statuses that represent genuine forward progress — used when the LLM
@@ -104,8 +108,8 @@ class ApplicationMatcherService:
             result = await self.db.execute(
                 base_query.where(
                     and_(
-                        Application.company_name.ilike(f"%{company_name}%"),
-                        Application.position_title.ilike(f"%{position_title}%"),
+                        Application.company_name.ilike(f"%{_escape_ilike(company_name)}%"),
+                        Application.position_title.ilike(f"%{_escape_ilike(position_title)}%"),
                     )
                 ).limit(1)
             )
@@ -117,7 +121,7 @@ class ApplicationMatcherService:
         if company_name:
             result = await self.db.execute(
                 base_query.where(
-                    Application.company_name.ilike(f"%{company_name}%")
+                    Application.company_name.ilike(f"%{_escape_ilike(company_name)}%")
                 ).limit(1)
             )
             match = result.scalar_one_or_none()
@@ -128,7 +132,7 @@ class ApplicationMatcherService:
         if position_title:
             result = await self.db.execute(
                 base_query.where(
-                    Application.position_title.ilike(f"%{position_title}%")
+                    Application.position_title.ilike(f"%{_escape_ilike(position_title)}%")
                 ).limit(1)
             )
             return result.scalar_one_or_none()
@@ -199,7 +203,7 @@ class ApplicationMatcherService:
         old_status = application.status
 
         application.status = resolved
-        application.last_updated = datetime.utcnow()
+        application.last_updated = datetime.now(timezone.utc)
 
         history = StatusHistory(
             application_id=application.id,
