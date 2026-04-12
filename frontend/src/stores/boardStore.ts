@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 // ---------- WebSocket singleton ----------
 let ws: WebSocket | null = null;
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let pingIntervalId: ReturnType<typeof setInterval> | null = null;
 const WS_RECONNECT_DELAY_MS = 5000;
 
 function getWsUrl(token: string): string {
@@ -122,12 +123,9 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
       ws.onopen = () => {
         set({ wsConnected: true });
-        // Start ping/pong keepalive
-        const ping = setInterval(() => {
+        pingIntervalId = setInterval(() => {
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ping' }));
-          } else {
-            clearInterval(ping);
           }
         }, 30_000);
       };
@@ -163,6 +161,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
       ws.onclose = () => {
         ws = null;
+        if (pingIntervalId) {
+          clearInterval(pingIntervalId);
+          pingIntervalId = null;
+        }
         set({ wsConnected: false });
         // Auto-reconnect if user is still logged in
         if (useAuthStore.getState().isAuthenticated) {
@@ -193,8 +195,12 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       clearTimeout(wsReconnectTimer);
       wsReconnectTimer = null;
     }
+    if (pingIntervalId) {
+      clearInterval(pingIntervalId);
+      pingIntervalId = null;
+    }
     if (ws) {
-      ws.onclose = null; // prevent auto-reconnect
+      ws.onclose = null;
       ws.close();
       ws = null;
     }
