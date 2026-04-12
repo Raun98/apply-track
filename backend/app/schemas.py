@@ -1,17 +1,15 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
-# ============== User Schemas ==============
 
 class UserBase(BaseModel):
     email: EmailStr
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=8, pattern=r"^(?=.*[A-Z])(?=.*\d).+")
 
 
 class UserResponse(UserBase):
@@ -44,16 +42,14 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, pattern=r"^(?=.*[A-Z])(?=.*\d).+")
 
-
-# ============== Application Schemas ==============
 
 class ApplicationBase(BaseModel):
-    company_name: str
-    position_title: str
-    location: Optional[str] = None
-    salary_range: Optional[str] = None
+    company_name: str = Field(max_length=255)
+    position_title: str = Field(max_length=255)
+    location: Optional[str] = Field(default=None, max_length=255)
+    salary_range: Optional[str] = Field(default=None, max_length=100)
     source: str = "manual"
     status: str = "applied"
     notes: Optional[str] = None
@@ -64,10 +60,10 @@ class ApplicationCreate(ApplicationBase):
 
 
 class ApplicationUpdate(BaseModel):
-    company_name: Optional[str] = None
-    position_title: Optional[str] = None
-    location: Optional[str] = None
-    salary_range: Optional[str] = None
+    company_name: Optional[str] = Field(default=None, max_length=255)
+    position_title: Optional[str] = Field(default=None, max_length=255)
+    location: Optional[str] = Field(default=None, max_length=255)
+    salary_range: Optional[str] = Field(default=None, max_length=100)
     status: Optional[str] = None
     notes: Optional[str] = None
 
@@ -90,8 +86,6 @@ class ApplicationListResponse(BaseModel):
     page_size: int
 
 
-# ============== Status History Schemas ==============
-
 class StatusHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,10 +96,8 @@ class StatusHistoryResponse(BaseModel):
     reason: Optional[str]
 
 
-# ============== Activity Schemas ==============
-
 class ActivityCreate(BaseModel):
-    type: str = "note"  # e.g. note, call, email, interview
+    type: Literal["note", "call", "email", "interview", "status_change"] = "note"
     description: str
     extra_data: Optional[dict] = None
 
@@ -119,8 +111,6 @@ class ActivityResponse(BaseModel):
     extra_data: Optional[dict]
     created_at: datetime
 
-
-# ============== Email Schemas ==============
 
 class EmailBase(BaseModel):
     from_address: str
@@ -148,8 +138,6 @@ class EmailResponse(EmailBase):
     application_id: Optional[int]
 
 
-# ============== Email Account Schemas ==============
-
 class EmailAccountBase(BaseModel):
     provider: str
     email: EmailStr
@@ -159,7 +147,7 @@ class EmailAccountCreate(EmailAccountBase):
     imap_host: Optional[str] = None
     imap_port: Optional[int] = None
     imap_username: Optional[str] = None
-    imap_password: Optional[str] = None
+    imap_password: Optional[str] = Field(default=None, exclude=True, repr=False)
 
 
 class EmailAccountResponse(EmailAccountBase):
@@ -172,8 +160,6 @@ class EmailAccountResponse(EmailAccountBase):
     created_at: datetime
 
 
-# ============== Board Schemas ==============
-
 class BoardColumn(BaseModel):
     id: str
     title: str
@@ -184,8 +170,6 @@ class MoveCardRequest(BaseModel):
     to_column: str
     order: int = 0
 
-
-# ============== Stats Schemas ==============
 
 class StatusCount(BaseModel):
     status: str
@@ -206,8 +190,6 @@ class TimelineData(BaseModel):
     responses: int
     interviews: int
 
-
-# ============== Subscription Schemas ==============
 
 class SubscriptionPlanResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

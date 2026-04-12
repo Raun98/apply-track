@@ -13,11 +13,13 @@ def get_fernet() -> Fernet | None:
 
 
 def encrypt_password(plaintext: str) -> str:
-    """Encrypt a password. Returns ciphertext or plaintext if no key configured."""
+    """Encrypt a password. Raises ValueError if ENCRYPTION_KEY is not configured."""
     f = get_fernet()
     if not f:
-        logger.warning("ENCRYPTION_KEY not set — storing password in plaintext")
-        return plaintext
+        raise ValueError(
+            "ENCRYPTION_KEY is not set. Refusing to store credentials unencrypted. "
+            "Generate a key with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
     return f.encrypt(plaintext.encode()).decode()
 
 
