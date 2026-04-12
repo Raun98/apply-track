@@ -1,7 +1,7 @@
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,15 +16,20 @@ from app.config import get_settings
 router = APIRouter()
 
 
-def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Require admin access."""
+async def require_admin(
+    x_admin_secret: str = Header(..., alias="X-Admin-Secret"),
+    current_user: User = Depends(get_current_user),
+) -> User:
     admin_secret = get_settings().ADMIN_SECRET
-    # For now, check if user has admin_secret in header or user is admin
-    # In production, you'd check a role field on the user
     if not admin_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin mode not configured",
+        )
+    if x_admin_secret != admin_secret:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin secret",
         )
     return current_user
 
@@ -56,7 +61,7 @@ class PlanUpdate(BaseModel):
 
 class CouponCreate(BaseModel):
     code: str
-    discount_type: str  # "percentage" or "fixed"
+    discount_type: Literal["percentage", "fixed"]
     discount_value: int
     min_order_amount: Optional[int] = None
     max_uses: Optional[int] = None
@@ -214,10 +219,13 @@ async def get_subscription_stats(
     plan_result = await db.execute(plan_query)
     plan_stats = [{"plan": row[0], "count": row[1]} for row in plan_result.fetchall()]
     
+    total_users_result = await db.execute(select(func.count(User.id)))
+    total_users = total_users_result.scalar()
+
     return {
         "by_status": stats,
         "by_plan": plan_stats,
-        "total_users": await db.execute(select(func.count(User.id))),
+        "total_users": total_users,
     }
 
 
@@ -239,7 +247,7 @@ async def admin_cancel_subscription(
             razorpay_svc.cancel_subscription(subscription.razorpay_subscription_id)
 
     subscription.status = SubscriptionStatus.CANCELLED
-    subscription.cancelled_at = datetime.utcnow()
+    subscription.cancelled_at = datetime.now(timezone.utc)
     await db.commit()
     
     return {"message": "Subscription cancelled"}
