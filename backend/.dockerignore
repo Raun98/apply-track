@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+celerybeat-schedule
+*.db
+.git
+.gitignore
+README.md
+Dockerfile
+docker-compose.yml

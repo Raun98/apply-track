@@ -1,5 +1,3 @@
-# Docker Compose for both local development and Railway deployment
-# Railway will use this file and override environment variables as needed
 services:
   db:
     image: postgres:15-alpine
@@ -23,6 +21,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -31,12 +34,12 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?WEBHOOK_SECRET must be set}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
       - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-}
@@ -46,16 +49,21 @@ services:
       - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
       - ADMIN_SECRET=${ADMIN_SECRET:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
-    volumes:
-      - ./backend:/app
-    command: sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 ${RELOAD_FLAG:---reload}"
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 ${RELOAD_FLAG:---reload}"
 
   celery_worker:
     build:
@@ -64,23 +72,24 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?WEBHOOK_SECRET must be set}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
       - INBOX_DOMAIN=${INBOX_DOMAIN:-inbox.applytrack.app}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
       - ADMIN_SECRET=${ADMIN_SECRET:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: celery -A app.tasks.celery_app worker --loglevel=info
 
   celery_beat:
@@ -90,23 +99,24 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jobtracker:jobtracker_password@db:5432/jobtracker}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook-secret-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?WEBHOOK_SECRET must be set}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
       - INBOX_DOMAIN=${INBOX_DOMAIN:-inbox.applytrack.app}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY:-}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN:-}
       - ADMIN_SECRET=${ADMIN_SECRET:-}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: celery -A app.tasks.celery_app beat --loglevel=info
 
   frontend:
@@ -119,7 +129,8 @@ services:
       - /opt/docker-nginx/nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
       - /opt/docker-nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
