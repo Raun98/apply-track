@@ -1,11 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
-// In production, set VITE_API_BASE_URL to your backend URL
-// Example: VITE_API_BASE_URL=https://backend-your-service.up.railway.app/api/v1
-// In development, defaults to relative path for Vite proxy
-// Use relative URL - nginx will proxy to backend
-const API_URL = '/api/v1';
+const API_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -14,7 +10,6 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
@@ -26,7 +21,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle token refresh
+let refreshPromise: Promise<any> | null = null;
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -34,38 +30,36 @@ api.interceptors.response.use(
     const authState = useAuthStore.getState();
 
     if (error.response?.status === 401 && originalRequest) {
-      // Only try to refresh if we have a refresh token
       const refreshToken = authState.refreshToken;
 
       if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_URL}/auth/refresh`, {
+        if (!refreshPromise) {
+          refreshPromise = axios.post(`${API_URL}/auth/refresh`, {
             refresh_token: refreshToken,
+          }).finally(() => {
+            refreshPromise = null;
           });
+        }
 
+        try {
+          const response = await refreshPromise;
           const { access_token } = response.data;
           useAuthStore.getState().setTokens(access_token, refreshToken);
 
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         } catch (refreshError) {
-          // Token refresh failed, logout the user
           useAuthStore.getState().logout();
-          // Don't automatically redirect - let the app handle it based on current route
-          // The app will show the landing page if no auth, or login page as fallback
           return Promise.reject(refreshError);
         }
       }
-      // If no refresh token and 401, logout (no active session)
       useAuthStore.getState().logout();
-      // Don't redirect - let the app handle it
     }
 
     return Promise.reject(error);
   }
 );
 
-// Auth API
 export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
@@ -79,7 +73,6 @@ export const authApi = {
   getMe: () => api.get('/auth/me'),
 };
 
-// Applications API
 export const applicationsApi = {
   getAll: (params?: { status?: string; source?: string; search?: string; page?: number; page_size?: number }) =>
     api.get('/applications', { params }),
@@ -100,7 +93,6 @@ export const applicationsApi = {
     api.post(`/applications/${id}/activities`, data),
 };
 
-// Board API
 export const boardApi = {
   getColumns: () => api.get('/board/columns'),
 
@@ -112,7 +104,6 @@ export const boardApi = {
   getStats: () => api.get('/board/stats'),
 };
 
-// Email Accounts API
 export const emailAccountsApi = {
   getAll: () => api.get('/email-accounts'),
 
@@ -123,7 +114,6 @@ export const emailAccountsApi = {
   sync: (id: number) => api.post(`/email-accounts/${id}/sync`),
 };
 
-// Subscription API
 export const subscriptionApi = {
   getPlans: () => api.get('/subscriptions/plans'),
 

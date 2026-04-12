@@ -48,7 +48,6 @@ export const authDebug = {
   },
 };
 
-// Make authDebug available in window for easy console access
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !import.meta.env.PROD) {
   (window as any).authDebug = authDebug;
 }

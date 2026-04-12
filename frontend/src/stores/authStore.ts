@@ -14,7 +14,6 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
 }
 
-// Track if the store has been hydrated from localStorage
 let isHydrated = false;
 
 export const useAuthStore = create<AuthState>()(
@@ -40,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken,
           refreshToken,
+          isAuthenticated: true,
         });
       },
 
@@ -51,7 +51,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
-        // Clear localStorage to ensure clean state
         localStorage.removeItem('auth-storage');
       },
 
@@ -63,28 +62,26 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       onRehydrateStorage: () => {
         return (state, error) => {
-          // Mark as hydrated when this callback is called
           isHydrated = true;
-          
+
           if (!error && state) {
-            // CRITICAL FIX: If no token exists, ensure isAuthenticated is false
-            // This prevents redirect loops when localStorage is corrupted
             if (!state.accessToken || !state.refreshToken) {
-              state.isAuthenticated = false;
-              state.user = null;
-              state.accessToken = null;
-              state.refreshToken = null;
+              useAuthStore.setState({
+                isAuthenticated: false,
+                user: null,
+                accessToken: null,
+                refreshToken: null,
+              });
             }
-            state.isLoading = false;
-          } else {
-            // If there's an error rehydrating, reset to unauthenticated
-            if (state) {
-              state.isAuthenticated = false;
-              state.accessToken = null;
-              state.refreshToken = null;
-              state.user = null;
-              state.isLoading = false;
-            }
+            useAuthStore.setState({ isLoading: false });
+          } else if (state) {
+            useAuthStore.setState({
+              isAuthenticated: false,
+              accessToken: null,
+              refreshToken: null,
+              user: null,
+              isLoading: false,
+            });
           }
         };
       },
@@ -92,5 +89,4 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Export a function to check if hydration is complete
 export const isAuthHydrated = () => isHydrated;
