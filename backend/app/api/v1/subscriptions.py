@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from typing import Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,7 +81,7 @@ async def activate_free_plan(
         user_id=current_user.id,
         plan_id=free_plan.id,
         status=SubscriptionStatus.ACTIVE,
-        current_period_start=datetime.utcnow(),
+        current_period_start=datetime.now(timezone.utc),
     )
     db.add(subscription)
     await db.commit()
@@ -137,7 +137,7 @@ async def create_subscription(
             user_id=current_user.id,
             plan_id=plan.id,
             status=SubscriptionStatus.ACTIVE,
-            current_period_start=datetime.utcnow(),
+            current_period_start=datetime.now(timezone.utc),
         )
         db.add(subscription)
         await db.commit()
@@ -235,7 +235,7 @@ async def cancel_subscription(
             razorpay_svc.cancel_subscription(subscription.razorpay_subscription_id)
 
     subscription.status = SubscriptionStatus.CANCELLED
-    subscription.cancelled_at = datetime.utcnow()
+    subscription.cancelled_at = datetime.now(timezone.utc)
     await db.commit()
 
     return {"message": "Subscription cancelled successfully"}
@@ -299,7 +299,7 @@ async def razorpay_webhook(
 
         if subscription:
             subscription.status = SubscriptionStatus.CANCELLED
-            subscription.cancelled_at = datetime.utcnow()
+            subscription.cancelled_at = datetime.now(timezone.utc)
             await db.commit()
 
     elif event == "payment.failed":

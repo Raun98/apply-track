@@ -1,7 +1,22 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+def _validate_password_strength(value: str) -> str:
+    """Require ≥ 8 chars, at least one uppercase letter, and at least one digit.
+
+    The pydantic `pattern` field with lookaheads is not supported by Pydantic's
+    Rust regex backend (Python 3.13+), so we validate in Python instead.
+    """
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    if not any(c.isupper() for c in value):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not any(c.isdigit() for c in value):
+        raise ValueError("Password must contain at least one digit")
+    return value
 
 
 class UserBase(BaseModel):
@@ -9,7 +24,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=8, pattern=r"^(?=.*[A-Z])(?=.*\d).+")
+    password: str = Field(min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class UserResponse(UserBase):
@@ -42,7 +62,12 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(min_length=8, pattern=r"^(?=.*[A-Z])(?=.*\d).+")
+    new_password: str = Field(min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class ApplicationBase(BaseModel):

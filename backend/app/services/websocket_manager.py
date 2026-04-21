@@ -11,6 +11,17 @@ logger = logging.getLogger(__name__)
 
 CHANNEL = "ws:broadcast"
 
+# Module-level sync Redis pool shared across all Celery task invocations in a worker process.
+_sync_redis_pool: Optional[syncredis.Redis] = None
+
+
+def _get_sync_redis() -> syncredis.Redis:
+    global _sync_redis_pool
+    if _sync_redis_pool is None:
+        settings = get_settings()
+        _sync_redis_pool = syncredis.from_url(settings.REDIS_URL)
+    return _sync_redis_pool
+
 
 class WebSocketManager:
     def __init__(self):
@@ -87,12 +98,15 @@ class WebSocketManager:
 
     @staticmethod
     def publish_sync(user_id: int, event: str, data: dict):
+        """Publish an event to the Redis pub/sub channel (called from Celery workers).
+
+        Uses a module-level connection pool so we don't open a new TCP connection
+        on every Celery task invocation.
+        """
         try:
-            settings = get_settings()
-            r = syncredis.from_url(settings.REDIS_URL)
+            r = _get_sync_redis()
             payload = json.dumps({"user_id": user_id, "event": event, "data": data})
             r.publish(CHANNEL, payload)
-            r.close()
         except Exception as e:
             logger.error(f"WS publish_sync error: {e}")
 

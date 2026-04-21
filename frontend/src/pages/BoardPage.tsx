@@ -58,13 +58,25 @@ export function BoardPage() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Find which column the card is being dropped into
-    const overColumn = columns.find((col) => col.id === overId);
+    // `over` can be either a column (id = status string) or a card (id = number string).
+    // Resolve to the target column in both cases.
+    let targetColumnId = columns.find((col) => col.id === overId)?.id;
 
-    if (overColumn) {
-      // Dropped on a column
+    if (!targetColumnId) {
+      // Dropped on another card — find which column that card lives in
+      const cardId = parseInt(overId);
+      for (const col of columns) {
+        const apps = applications[col.id as ApplicationStatus] || [];
+        if (apps.some((a) => a.id === cardId)) {
+          targetColumnId = col.id;
+          break;
+        }
+      }
+    }
+
+    if (targetColumnId) {
       const applicationId = parseInt(activeId);
-      await moveApplication(applicationId, overColumn.id);
+      await moveApplication(applicationId, targetColumnId as ApplicationStatus);
     }
   };
 

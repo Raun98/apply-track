@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/apply-track/job-tracker/frontend/src -name \"__init__.py\" -delete)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(pip show:*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

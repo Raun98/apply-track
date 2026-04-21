@@ -12,6 +12,8 @@ import { EmailSettingsPage } from '@/pages/EmailSettingsPage';
 import { SubscriptionPage } from '@/pages/SubscriptionPage';
 import { DebugPage } from '@/pages/DebugPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { VerifyEmailPage } from '@/pages/VerifyEmailPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { Loader2 } from 'lucide-react';
 
 class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -76,6 +78,10 @@ function App() {
     <ErrorBoundary>
       <Routes>
         {!import.meta.env.PROD && <Route path="/debug" element={<DebugPage />} />}
+
+        {/* Public routes — accessible with or without authentication */}
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route
           path="/"

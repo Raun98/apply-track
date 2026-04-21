@@ -18,6 +18,7 @@ from app.api.deps import (
     get_current_user,
 )
 from app.models.user import User
+from app.models.subscription import Subscription, SubscriptionPlan, SubscriptionStatus, PlanType
 from app.schemas import UserCreate, UserResponse, UserUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
 from app.services.email_service import send_email
@@ -67,6 +68,21 @@ async def register(
         """,
     )
 
+    # Auto-activate the free plan for new users
+    free_plan_result = await db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.plan_type == PlanType.FREE)
+    )
+    free_plan = free_plan_result.scalar_one_or_none()
+    if free_plan:
+        subscription = Subscription(
+            user_id=user.id,
+            plan_id=free_plan.id,
+            status=SubscriptionStatus.ACTIVE,
+            current_period_start=datetime.now(timezone.utc),
+        )
+        db.add(subscription)
+        await db.commit()
+
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
@@ -115,6 +131,7 @@ async def login(
 @router.post("/refresh")
 @limiter.limit("20/minute")
 async def refresh_token(
+    request: Request,
     refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
@@ -221,6 +238,7 @@ async def forgot_password(
 @router.post("/reset-password", status_code=200)
 @limiter.limit("5/minute")
 async def reset_password(
+    request: Request,
     data: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):

@@ -134,11 +134,18 @@ async def get_board_stats(
     total = sum(status_counts.values())
 
     # Calculate rates
+    # response = any stage beyond "applied" (screening, interview, offer, accepted, rejected)
+    response_count = (
+        status_counts.get("screening", 0)
+        + status_counts.get("interview", 0)
+        + status_counts.get("offer", 0)
+        + status_counts.get("accepted", 0)
+        + status_counts.get("rejected", 0)
+    )
     interview_count = status_counts.get("interview", 0) + status_counts.get("offer", 0) + status_counts.get("accepted", 0)
     offer_count = status_counts.get("offer", 0) + status_counts.get("accepted", 0)
-    accepted_count = status_counts.get("accepted", 0)
 
-    response_rate = (interview_count / total * 100) if total > 0 else 0
+    response_rate = (response_count / total * 100) if total > 0 else 0
     interview_rate = (interview_count / total * 100) if total > 0 else 0
     offer_rate = (offer_count / total * 100) if total > 0 else 0
 

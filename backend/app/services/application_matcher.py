@@ -223,7 +223,7 @@ class ApplicationMatcherService:
         days: int = 30,
     ) -> List[Application]:
         """Get applications from the last N days."""
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         query = (
             select(Application)

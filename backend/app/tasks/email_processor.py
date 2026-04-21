@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from celery import shared_task
@@ -214,7 +214,7 @@ async def poll_imap_account_async(account_id: int) -> int:
         for email in new_emails:
             process_email.delay(email.id)
 
-        account.last_sync_at = datetime.utcnow()
+        account.last_sync_at = datetime.now(timezone.utc)
         await db.commit()
 
         return len(new_emails)

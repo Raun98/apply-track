@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
@@ -11,10 +11,21 @@ from sqlalchemy import select
 from app.api.deps import get_db
 from app.config import get_settings
 from app.models.email import Email, ProcessedStatus
+from app.models.user import User
 from app.tasks.email_processor import process_email
 
 router = APIRouter()
 settings = get_settings()
+
+
+async def _require_user(user_id: int, db: AsyncSession) -> None:
+    """Raise 400 if the user_id doesn't exist in the database."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recipient user not found",
+        )
 
 
 @router.post("/email")
@@ -51,7 +62,7 @@ async def receive_email_webhook(
     subject = data.get("subject") or ""
     body_text = data.get("text") or data.get("body") or ""
     body_html = data.get("html") or ""
-    message_id = data.get("message_id") or data.get("Message-ID") or f"webhook-{datetime.utcnow().timestamp()}"
+    message_id = data.get("message_id") or data.get("Message-ID") or f"webhook-{datetime.now(timezone.utc).timestamp()}"
 
     # Dedup: skip if this message_id already exists
     existing = await db.execute(
@@ -81,6 +92,8 @@ async def receive_email_webhook(
             detail="Could not determine user from recipient address",
         )
 
+    await _require_user(user_id, db)
+
     # Create email record
     email = Email(
         user_id=user_id,
@@ -90,7 +103,7 @@ async def receive_email_webhook(
         subject=subject,
         body_text=body_text,
         body_html=body_html,
-        received_at=datetime.utcnow(),
+        received_at=datetime.now(timezone.utc),
         processed_status=ProcessedStatus.PENDING,
     )
 
@@ -136,7 +149,7 @@ async def receive_raw_email(
         from_address = msg["From"] or ""
         to_address = msg["To"] or ""
         subject = msg["Subject"] or ""
-        message_id = msg["Message-ID"] or f"raw-{datetime.utcnow().timestamp()}"
+        message_id = msg["Message-ID"] or f"raw-{datetime.now(timezone.utc).timestamp()}"
 
         # Dedup: skip if this message_id already exists
         existing = await db.execute(
@@ -180,6 +193,8 @@ async def receive_raw_email(
                 detail="Could not determine user from recipient address",
             )
 
+        await _require_user(user_id, db)
+
         # Create email record
         email_record = Email(
             user_id=user_id,
@@ -189,7 +204,7 @@ async def receive_raw_email(
             subject=subject,
             body_text=body_text[:10000],
             body_html=body_html[:10000] if body_html else None,
-            received_at=datetime.utcnow(),
+            received_at=datetime.now(timezone.utc),
             processed_status=ProcessedStatus.PENDING,
         )
 
@@ -231,9 +246,12 @@ async def mailgun_inbound(
     mg_token = form.get("token", "")
     signature = form.get("signature", "")
 
-    if settings.MAILGUN_API_KEY:  # Only verify if key is set
+    # Use the dedicated webhook signing key (Mailgun dashboard → Webhooks).
+    # Fall back to the API key only if the signing key is not configured yet.
+    signing_key = settings.MAILGUN_WEBHOOK_SIGNING_KEY or settings.MAILGUN_API_KEY
+    if signing_key:
         expected = hmac.new(
-            settings.MAILGUN_API_KEY.encode(),
+            signing_key.encode(),
             f"{timestamp}{mg_token}".encode(),
             hashlib.sha256,
         ).hexdigest()
@@ -245,7 +263,7 @@ async def mailgun_inbound(
     subject = form.get("subject", "")
     body_plain = form.get("body-plain", "")
     body_html = form.get("body-html", "")
-    message_id = form.get("Message-Id", "") or f"mailgun-{datetime.utcnow().timestamp()}"
+    message_id = form.get("Message-Id", "") or f"mailgun-{datetime.now(timezone.utc).timestamp()}"
 
     # Extract user ID from recipient: user{id}@inbox.applytrack.app
     match = re.match(r"user(\d+)@", recipient)
@@ -253,6 +271,7 @@ async def mailgun_inbound(
         return {"status": "ignored", "reason": "recipient format not recognized"}
 
     user_id = int(match.group(1))
+    await _require_user(user_id, db)
 
     # Check message_id dedup
     if message_id:
@@ -271,7 +290,7 @@ async def mailgun_inbound(
         subject=subject,
         body_text=body_plain[:10000] if body_plain else "",
         body_html=body_html[:10000] if body_html else None,
-        received_at=datetime.utcnow(),
+        received_at=datetime.now(timezone.utc),
         processed_status=ProcessedStatus.PENDING,
     )
 

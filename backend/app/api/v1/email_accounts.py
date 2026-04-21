@@ -2,7 +2,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 
 from app.api.deps import get_db, get_current_active_user
 from app.models.user import User
@@ -51,9 +51,9 @@ async def create_email_account(
             max_accounts = plan.features.get("email_accounts")
             if max_accounts is not None and max_accounts != -1:
                 count_result = await db.execute(
-                    select(EmailAccount).where(EmailAccount.user_id == current_user.id)
+                    select(func.count()).select_from(EmailAccount).where(EmailAccount.user_id == current_user.id)
                 )
-                current_count = len(count_result.scalars().all())
+                current_count = count_result.scalar_one()
                 if current_count >= max_accounts:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,

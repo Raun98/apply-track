@@ -42,6 +42,9 @@ class Settings(BaseSettings):
 
     MAILGUN_API_KEY: str = ""
     MAILGUN_DOMAIN: str = ""
+    # Mailgun inbound webhook signing key — separate from the API key.
+    # Found in Mailgun dashboard → Webhooks → HTTP webhook signing key.
+    MAILGUN_WEBHOOK_SIGNING_KEY: str = ""
     EMAIL_FROM: str = "noreply@applytrack.app"
 
     ADMIN_SECRET: str = ""
