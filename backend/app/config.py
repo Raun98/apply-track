@@ -49,6 +49,13 @@ class Settings(BaseSettings):
 
     ADMIN_SECRET: str = ""
 
+    # OAuth2 (Gmail + Outlook)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    OAUTH_REDIRECT_BASE_URL: str = "http://localhost:8000"
+
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     FRONTEND_URL: str = "http://localhost:3000"

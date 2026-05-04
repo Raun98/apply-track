@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { emailAccountsApi } from '@/services/api';
 import { EmailAccount, EmailAccountCreate } from '@/types';
-import { Mail, Plus, Trash2, RefreshCw, Check, X, Copy } from 'lucide-react';
+import { Mail, Plus, Trash2, RefreshCw, Check, X, Copy, Shield } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+
+const OAUTH_PROVIDERS = ['gmail', 'outlook'] as const;
+type OAuthProvider = typeof OAUTH_PROVIDERS[number];
+
+function isOAuthProvider(provider: string): provider is OAuthProvider {
+  return OAUTH_PROVIDERS.includes(provider as OAuthProvider);
+}
 
 export function EmailSettingsPage() {
   const { user } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<EmailAccountCreate>({
@@ -25,16 +36,49 @@ export function EmailSettingsPage() {
     try {
       const response = await emailAccountsApi.getAll();
       setAccounts(response.data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to fetch accounts');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle OAuth redirect-back query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const connected = params.get('connected');
+    const oauthError = params.get('error');
+
+    if (connected === 'true') {
+      toast.success('Email account connected successfully');
+      fetchAccounts();
+      navigate('/email-settings', { replace: true });
+    } else if (oauthError) {
+      const messages: Record<string, string> = {
+        invalid_state: 'OAuth session expired. Please try again.',
+        token_exchange_failed: 'Could not complete sign-in. Please try again.',
+        no_email: 'Could not retrieve your email address from the provider.',
+        account_limit_reached: 'Email account limit reached for your plan. Please upgrade.',
+      };
+      toast.error(messages[oauthError] || 'Failed to connect account.');
+      navigate('/email-settings', { replace: true });
+    }
+  }, [location.search]);
+
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  const handleOAuthConnect = async (provider: OAuthProvider) => {
+    setIsOAuthLoading(true);
+    try {
+      const response = await emailAccountsApi.getOAuthUrl(provider);
+      window.location.href = response.data.auth_url;
+    } catch {
+      toast.error('Could not start sign-in. Please try again.');
+      setIsOAuthLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,12 +89,7 @@ export function EmailSettingsPage() {
       await emailAccountsApi.create(formData);
       toast.success('Email account connected');
       setShowAddForm(false);
-      setFormData({
-        provider: 'gmail',
-        email: '',
-        imap_username: '',
-        imap_password: '',
-      });
+      setFormData({ provider: 'gmail', email: '', imap_username: '', imap_password: '' });
       await fetchAccounts();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -64,14 +103,12 @@ export function EmailSettingsPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to remove this email account?')) return;
-
     try {
       await emailAccountsApi.delete(id);
       toast.success('Email account removed');
       await fetchAccounts();
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove email account');
-      console.error('Failed to delete account:', error);
     }
   };
 
@@ -79,9 +116,8 @@ export function EmailSettingsPage() {
     try {
       await emailAccountsApi.sync(id);
       toast.success('Sync started! New emails will be processed shortly.');
-    } catch (error) {
+    } catch {
       toast.error('Failed to start sync');
-      console.error('Failed to sync:', error);
     }
   };
 
@@ -91,6 +127,8 @@ export function EmailSettingsPage() {
       toast.success('Address copied to clipboard');
     }
   };
+
+  const selectedProviderIsOAuth = isOAuthProvider(formData.provider);
 
   return (
     <div>
@@ -148,75 +186,116 @@ export function EmailSettingsPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
-                <select
-                  value={formData.provider}
-                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+            <select
+              value={formData.provider}
+              onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            >
+              <option value="gmail">Gmail</option>
+              <option value="outlook">Outlook</option>
+              <option value="yahoo">Yahoo</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          {selectedProviderIsOAuth ? (
+            /* OAuth flow for Gmail / Outlook */
+            <div className="space-y-4">
+              <div className="flex items-start p-4 bg-green-50 border border-green-200 rounded-lg">
+                <Shield className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
+                <p className="text-sm text-green-800">
+                  Sign in securely with your {formData.provider === 'gmail' ? 'Google' : 'Microsoft'} account.
+                  No password is stored — access is granted via OAuth2 and can be revoked at any time from your provider settings.
+                </p>
+              </div>
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  <option value="gmail">Gmail</option>
-                  <option value="outlook">Outlook</option>
-                  <option value="yahoo">Yahoo</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">IMAP Username (optional)</label>
-                <input
-                  type="text"
-                  value={formData.imap_username}
-                  onChange={(e) => setFormData({ ...formData, imap_username: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Same as email if left blank"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">IMAP Password / App Password</label>
-                <input
-                  type="password"
-                  required
-                  value={formData.imap_password}
-                  onChange={(e) => setFormData({ ...formData, imap_password: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Your app-specific password"
-                />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isOAuthLoading}
+                  onClick={() => handleOAuthConnect(formData.provider as OAuthProvider)}
+                  className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {isOAuthLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Redirecting...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4 mr-2" />
+                      Sign in with {formData.provider === 'gmail' ? 'Google' : 'Microsoft'}
+                    </>
+                  )}
+                </button>
               </div>
             </div>
+          ) : (
+            /* IMAP password form for Yahoo / Other */
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="you@example.com"
+                  />
+                </div>
 
-            <div className="flex items-center justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isSubmitting ? 'Adding...' : 'Add Account'}
-              </button>
-            </div>
-          </form>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IMAP Username (optional)</label>
+                  <input
+                    type="text"
+                    value={formData.imap_username}
+                    onChange={(e) => setFormData({ ...formData, imap_username: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="Same as email if left blank"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IMAP Password / App Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.imap_password}
+                    onChange={(e) => setFormData({ ...formData, imap_password: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="Your app-specific password"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {isSubmitting ? 'Adding...' : 'Add Account'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
@@ -245,8 +324,19 @@ export function EmailSettingsPage() {
                     <Mail className="w-5 h-5 text-gray-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="font-medium text-gray-900">{account.email}</p>
-                    <div className="flex items-center text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-900">{account.email}</p>
+                      {account.auth_method === 'oauth' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                          <Shield className="w-3 h-3" /> OAuth
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                          App password
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500 mt-0.5">
                       <span className="capitalize">{account.provider}</span>
                       <span className="mx-2">•</span>
                       {account.is_active ? (
@@ -261,9 +351,7 @@ export function EmailSettingsPage() {
                       {account.last_sync_at && (
                         <>
                           <span className="mx-2">•</span>
-                          <span>
-                            Last synced: {new Date(account.last_sync_at).toLocaleString()}
-                          </span>
+                          <span>Last synced: {new Date(account.last_sync_at).toLocaleString()}</span>
                         </>
                       )}
                     </div>

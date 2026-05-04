@@ -61,6 +61,7 @@ export interface EmailAccount {
   last_sync_at?: string;
   is_active: boolean;
   created_at: string;
+  auth_method?: 'oauth' | 'imap';
 }
 
 export interface EmailAccountCreate {

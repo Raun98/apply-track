@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -183,6 +183,17 @@ class EmailAccountResponse(EmailAccountBase):
     last_sync_at: Optional[datetime]
     is_active: bool
     created_at: datetime
+    auth_method: str = "imap"
+
+    @classmethod
+    def model_validate(cls, obj: Any, *args: Any, **kwargs: Any) -> "EmailAccountResponse":
+        instance = super().model_validate(obj, *args, **kwargs)
+        has_token = (
+            bool(obj.get("access_token")) if isinstance(obj, dict)
+            else bool(getattr(obj, "access_token", None))
+        )
+        instance.auth_method = "oauth" if has_token else "imap"
+        return instance
 
 
 class BoardColumn(BaseModel):

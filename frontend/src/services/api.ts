@@ -112,6 +112,9 @@ export const emailAccountsApi = {
   delete: (id: number) => api.delete(`/email-accounts/${id}`),
 
   sync: (id: number) => api.post(`/email-accounts/${id}/sync`),
+
+  getOAuthUrl: (provider: 'google' | 'microsoft') =>
+    api.get<{ auth_url: string }>(`/email-accounts/oauth/${provider}/init`),
 };
 
 export const subscriptionApi = {
